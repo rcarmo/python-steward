@@ -1,0 +1,15 @@
+.env
+.steward-plan.json
+.steward-plan.json.lock
+.steward-exec-audit.log
+.steward-log.jsonl
+.DS_Store
+.vscode/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+/.venv/
+/.env/
+outside.txt
