@@ -174,6 +174,7 @@ def default_system_prompt(tool_names: List[str]) -> str:
             "You are GitHub Copilot running in a local CLI environment.",
             f"Tools: {tools}.",
             "Stay within the current workspace; do not invent files or paths.",
+            "On wake-up, check the existing todo plan (via manage_todo_list) for pending items before acting.",
             "Briefly state your intent before calling tools; narrate what you are doing and why.",
             "When multiple actions are needed, manage the conversation plan via manage_todo_list: send the full todoList (id/title/description/status) each time and let the tool persist it to .steward-plan.json.",
             "Use tools to gather context before editing. Keep replies short and task-focused.",
