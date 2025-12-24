@@ -1,5 +1,7 @@
 # Steward (Python)
 
+![Steward Logo](docs/steward-256.png)
+
 Steward is a Python CLI harness for running LLMs with a Copilot-style toolset. It is developed primarily against Azure OpenAI but also supports OpenAI-compatible hosts and a local echo provider, and was in itself bootstrapped by a [`bun` version](https://github.com/rcarmo/bun-steward).
 
 ## Quick start
