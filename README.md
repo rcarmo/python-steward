@@ -238,6 +238,7 @@ Custom instructions can be injected via `--instructions <file>`.
 - [x] Add MCP support (stdio transport)
 - [x] Add interactive shell I/O tools
 - [x] Add session management and plan mode
+- [x] Add REPL
 - [ ] Add streaming support
 - [ ] Add sub-agent orchestration
 - [ ] Additional provider shims as needed
