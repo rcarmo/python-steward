@@ -13,12 +13,18 @@ from .shared import ensure_inside_workspace
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "configure_python_environment",
-    "description": "Select a Python interpreter for subsequent tools",
+    "description": "Select a Python interpreter for subsequent Python tools to use.",
     "parameters": {
         "type": "object",
         "properties": {
-            "resourcePath": {"type": "string"},
-            "pythonEnvironment": {"type": "string"},
+            "resourcePath": {
+                "type": "string",
+                "description": "Optional. Working directory context.",
+            },
+            "pythonEnvironment": {
+                "type": "string",
+                "description": "Optional. Path to Python executable or virtual environment.",
+            },
         },
     },
 }

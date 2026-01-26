@@ -11,11 +11,14 @@ from ..types import ToolDefinition, ToolResult
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "get_python_executable_details",
-    "description": "Return configured Python executable path and version info",
+    "description": "Return the configured Python executable path and version info.",
     "parameters": {
         "type": "object",
         "properties": {
-            "resourcePath": {"type": "string"},
+            "resourcePath": {
+                "type": "string",
+                "description": "Optional. Working directory context.",
+            },
         },
     },
 }

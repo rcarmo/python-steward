@@ -9,10 +9,15 @@ from .shared import ensure_inside_workspace, normalize_path, run_captured, trunc
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "git_status",
-    "description": "Show git status (short) for the workspace or subpath",
+    "description": "Show git status (short format) for the workspace or a subdirectory.",
     "parameters": {
         "type": "object",
-        "properties": {"path": {"type": "string"}},
+        "properties": {
+            "path": {
+                "type": "string",
+                "description": "Optional. Directory path to check status. Defaults to current directory.",
+            },
+        },
     },
 }
 

@@ -9,14 +9,18 @@ from .shared import ensure_inside_workspace, normalize_path, rel_path
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "get_changed_files",
-    "description": "List git changes grouped by state (staged, unstaged, untracked, merge-conflicts)",
+    "description": "List git changes grouped by state (staged, unstaged, untracked, merge-conflicts).",
     "parameters": {
         "type": "object",
         "properties": {
-            "repositoryPath": {"type": "string"},
+            "repositoryPath": {
+                "type": "string",
+                "description": "Optional. Path to git repository. Defaults to current directory.",
+            },
             "sourceControlState": {
                 "type": "array",
                 "items": {"type": "string", "enum": ["staged", "unstaged", "untracked", "merge-conflicts"]},
+                "description": "Optional. Filter by change states. Defaults to all states.",
             },
         },
     },

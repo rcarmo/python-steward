@@ -10,16 +10,23 @@ from .shared import ensure_inside_workspace, is_binary_buffer, rel_path
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "list_code_usages",
-    "description": "List occurrences of a symbol across files",
+    "description": "Find all occurrences of a symbol/identifier across files. REQUIRED: symbolName (string).",
     "parameters": {
         "type": "object",
         "properties": {
-            "symbolName": {"type": "string"},
+            "symbolName": {
+                "type": "string",
+                "description": "REQUIRED. The symbol/identifier name to search for.",
+            },
             "filePaths": {
                 "type": "array",
                 "items": {"type": "string"},
+                "description": "Optional. List of file or directory paths to search. Defaults to current directory.",
             },
-            "maxResults": {"type": "number"},
+            "maxResults": {
+                "type": "number",
+                "description": "Optional. Maximum number of results to return.",
+            },
         },
         "required": ["symbolName"],
     },

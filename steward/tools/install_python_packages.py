@@ -11,15 +11,19 @@ from ..types import ToolDefinition, ToolResult
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "install_python_packages",
-    "description": "Install Python packages into the configured interpreter environment",
+    "description": "Install Python packages via pip. REQUIRED: packageList (array of strings).",
     "parameters": {
         "type": "object",
         "properties": {
             "packageList": {
                 "type": "array",
                 "items": {"type": "string"},
+                "description": "REQUIRED. List of package names to install (e.g., ['requests', 'numpy']).",
             },
-            "resourcePath": {"type": "string"},
+            "resourcePath": {
+                "type": "string",
+                "description": "Optional. Working directory context.",
+            },
         },
         "required": ["packageList"],
     },

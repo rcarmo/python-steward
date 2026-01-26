@@ -11,24 +11,34 @@ from .shared import ensure_inside_workspace, normalize_path, rel_path
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "apply_patch",
-    "description": "Apply a unified diff patch to a file",
+    "description": "Apply a unified diff patch to a file. REQUIRED: path (string), patch (string).",
     "parameters": {
         "type": "object",
         "properties": {
-            "path": {"type": "string"},
-            "patch": {"type": "string"},
+            "path": {
+                "type": "string",
+                "description": "REQUIRED. Path to the file to patch.",
+            },
+            "patch": {
+                "type": "string",
+                "description": "REQUIRED. The unified diff patch content to apply.",
+            },
             "patches": {
                 "type": "array",
+                "description": "Optional batch mode: array of {path, patch} objects to apply multiple patches.",
                 "items": {
                     "type": "object",
                     "properties": {
-                        "path": {"type": "string"},
-                        "patch": {"type": "string"},
+                        "path": {"type": "string", "description": "Path to file."},
+                        "patch": {"type": "string", "description": "Patch content."},
                     },
                     "required": ["path", "patch"],
                 },
             },
-            "dryRun": {"type": "boolean"},
+            "dryRun": {
+                "type": "boolean",
+                "description": "If true, validate patch without applying.",
+            },
         },
         "required": ["path", "patch"],
     },

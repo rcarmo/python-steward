@@ -8,13 +8,22 @@ from .shared import ensure_inside_workspace, normalize_path, rel_path
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "replace_string_in_file",
-    "description": "Replace exact string match in a file with new content",
+    "description": "Replace exact string in a file. REQUIRED: path, oldString, newString (all strings).",
     "parameters": {
         "type": "object",
         "properties": {
-            "path": {"type": "string"},
-            "oldString": {"type": "string"},
-            "newString": {"type": "string"},
+            "path": {
+                "type": "string",
+                "description": "REQUIRED. Path to the file to modify.",
+            },
+            "oldString": {
+                "type": "string",
+                "description": "REQUIRED. The exact string to find and replace.",
+            },
+            "newString": {
+                "type": "string",
+                "description": "REQUIRED. The replacement string.",
+            },
         },
         "required": ["path", "oldString", "newString"],
     },

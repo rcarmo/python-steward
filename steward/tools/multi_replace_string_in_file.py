@@ -8,18 +8,19 @@ from .shared import ensure_inside_workspace, normalize_path, rel_path
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "multi_replace_string_in_file",
-    "description": "Apply multiple string replacements across files in a single operation",
+    "description": "Apply multiple string replacements across files. REQUIRED: replacements (array).",
     "parameters": {
         "type": "object",
         "properties": {
             "replacements": {
                 "type": "array",
+                "description": "REQUIRED. Array of replacement objects, each with path, oldString, newString.",
                 "items": {
                     "type": "object",
                     "properties": {
-                        "path": {"type": "string"},
-                        "oldString": {"type": "string"},
-                        "newString": {"type": "string"},
+                        "path": {"type": "string", "description": "File path to modify."},
+                        "oldString": {"type": "string", "description": "String to find."},
+                        "newString": {"type": "string", "description": "Replacement string."},
                     },
                     "required": ["path", "oldString", "newString"],
                 },

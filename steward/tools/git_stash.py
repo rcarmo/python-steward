@@ -9,13 +9,23 @@ from .shared import ensure_inside_workspace, normalize_path, run_captured, trunc
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "git_stash",
-    "description": "Manage git stash (save/pop/list)",
+    "description": "Manage git stash: save, pop, or list stashed changes.",
     "parameters": {
         "type": "object",
         "properties": {
-            "path": {"type": "string"},
-            "action": {"type": "string", "enum": ["save", "push", "pop", "list"]},
-            "message": {"type": "string"},
+            "path": {
+                "type": "string",
+                "description": "Optional. Working directory for git command. Defaults to current directory.",
+            },
+            "action": {
+                "type": "string",
+                "enum": ["save", "push", "pop", "list"],
+                "description": "Optional. Stash action: save/push, pop, or list. Default: save.",
+            },
+            "message": {
+                "type": "string",
+                "description": "Optional. Message for stash save/push.",
+            },
         },
     },
 }

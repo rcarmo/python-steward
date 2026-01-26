@@ -15,18 +15,35 @@ JS_MAX_OUTPUT_BYTES = env_cap("STEWARD_JS_MAX_OUTPUT_BYTES", 16000)
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "run_js",
-    "description": "Execute JavaScript in a sandboxed QuickJS runtime",
+    "description": "Execute JavaScript in a sandboxed QuickJS runtime. Provide either code or path.",
     "parameters": {
         "type": "object",
         "properties": {
-            "code": {"type": "string"},
-            "path": {"type": "string"},
-            "timeoutMs": {"type": "number"},
-            "maxOutputBytes": {"type": "number"},
-            "sandboxDir": {"type": "string"},
-            "allowNetwork": {"type": "boolean"},
+            "code": {
+                "type": "string",
+                "description": "JavaScript code to execute. Provide this OR path, not both.",
+            },
+            "path": {
+                "type": "string",
+                "description": "Path to JavaScript file to execute. Provide this OR code, not both.",
+            },
+            "timeoutMs": {
+                "type": "number",
+                "description": "Optional. Execution timeout in milliseconds. Default: 2000.",
+            },
+            "maxOutputBytes": {
+                "type": "number",
+                "description": "Optional. Maximum output size in bytes. Default: 16000.",
+            },
+            "sandboxDir": {
+                "type": "string",
+                "description": "Optional. Directory to use as sandbox root.",
+            },
+            "allowNetwork": {
+                "type": "boolean",
+                "description": "Optional. If true, allow network access (not implemented).",
+            },
         },
-        "required": [],
     },
 }
 

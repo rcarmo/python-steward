@@ -9,14 +9,26 @@ from .shared import ensure_inside_workspace, normalize_path, run_captured, trunc
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "git_diff",
-    "description": "Show git diff (optionally staged or for a path/ref)",
+    "description": "Show git diff output. Can show staged changes, specific files, or compare refs.",
     "parameters": {
         "type": "object",
         "properties": {
-            "path": {"type": "string"},
-            "file": {"type": "string"},
-            "ref": {"type": "string"},
-            "staged": {"type": "boolean"},
+            "path": {
+                "type": "string",
+                "description": "Optional. Working directory for git command. Defaults to current directory.",
+            },
+            "file": {
+                "type": "string",
+                "description": "Optional. Specific file to diff.",
+            },
+            "ref": {
+                "type": "string",
+                "description": "Optional. Git ref (branch, commit, tag) to diff against.",
+            },
+            "staged": {
+                "type": "boolean",
+                "description": "Optional. If true, show staged (cached) changes only.",
+            },
         },
     },
 }

@@ -9,13 +9,22 @@ from .shared import ensure_inside_workspace, normalize_path, run_captured, trunc
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "git_commit",
-    "description": "Commit staged changes (optionally --all)",
+    "description": "Commit staged changes. REQUIRED: message (string).",
     "parameters": {
         "type": "object",
         "properties": {
-            "path": {"type": "string"},
-            "message": {"type": "string"},
-            "all": {"type": "boolean"},
+            "path": {
+                "type": "string",
+                "description": "Optional. Working directory for git command. Defaults to current directory.",
+            },
+            "message": {
+                "type": "string",
+                "description": "REQUIRED. Commit message.",
+            },
+            "all": {
+                "type": "boolean",
+                "description": "Optional. If true, automatically stage all modified/deleted files (git commit -a).",
+            },
         },
         "required": ["message"],
     },
