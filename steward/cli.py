@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from .runner import RunnerOptions, run_steward
+from .session import generate_session_id
 
 
 def parse_args() -> RunnerOptions:
@@ -22,6 +23,8 @@ def parse_args() -> RunnerOptions:
     parser.add_argument("--quiet", action="store_true", help="Suppress human-readable logs to stdout")
     parser.add_argument("--pretty", action="store_true", help="Enable pretty boxed/color human logs")
     parser.add_argument("--system", dest="system", help="Load system prompt from file")
+    parser.add_argument("--session", dest="session", nargs="?", const="auto", help="Enable session persistence (auto-generates ID if not specified)")
+    parser.add_argument("--instructions", dest="instructions", help="Load custom instructions from file")
     parser.add_argument(
         "--sandbox",
         nargs="?",
@@ -38,6 +41,15 @@ def parse_args() -> RunnerOptions:
     if parsed.system:
         system_path = Path(parsed.system).resolve()
         system_prompt = system_path.read_text(encoding="utf8")
+
+    custom_instructions: Optional[str] = None
+    if parsed.instructions:
+        instructions_path = Path(parsed.instructions).resolve()
+        custom_instructions = instructions_path.read_text(encoding="utf8")
+
+    session_id: Optional[str] = None
+    if parsed.session:
+        session_id = parsed.session if parsed.session != "auto" else generate_session_id()
 
     sandbox = None
     if parsed.sandbox:
@@ -57,6 +69,8 @@ def parse_args() -> RunnerOptions:
         enable_human_logs=not parsed.quiet,
         enable_file_logs=not parsed.no_log_json,
         pretty_logs=parsed.pretty,
+        session_id=session_id,
+        custom_instructions=custom_instructions,
     )
 
 

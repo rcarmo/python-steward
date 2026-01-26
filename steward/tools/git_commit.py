@@ -34,5 +34,6 @@ def tool_handler(args: Dict) -> ToolResult:
         cmd.append("--all")
     cmd.extend(["-m", message])
     exit_code, stdout, stderr = run_captured(cmd, cwd)
-    body = f"exit {exit_code}\n{stdout}{'\nstderr:\n' + stderr if stderr else ''}"
+    stderr_part = "\nstderr:\n" + stderr if stderr else ""
+    body = f"exit {exit_code}\n{stdout}{stderr_part}"
     return {"id": "git_commit", "output": truncate_output(body, 16000)}

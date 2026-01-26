@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import multiprocessing as mp
-import time
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import quickjs
 
 from ..types import ToolDefinition, ToolResult
-from .shared import env_cap, ensure_inside_workspace, normalize_path, truncate_output
+from .shared import ensure_inside_workspace, env_cap, normalize_path, truncate_output
 
 JS_DEFAULT_TIMEOUT_MS = env_cap("STEWARD_JS_TIMEOUT_MS", 2000)
 JS_MAX_OUTPUT_BYTES = env_cap("STEWARD_JS_MAX_OUTPUT_BYTES", 16000)

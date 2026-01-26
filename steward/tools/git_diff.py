@@ -36,5 +36,6 @@ def tool_handler(args: Dict) -> ToolResult:
     if file_arg:
         cmd.extend(["--", file_arg])
     exit_code, stdout, stderr = run_captured(cmd, cwd)
-    body = f"exit {exit_code}\n{stdout}{'\nstderr:\n' + stderr if stderr else ''}"
+    stderr_part = "\nstderr:\n" + stderr if stderr else ""
+    body = f"exit {exit_code}\n{stdout}{stderr_part}"
     return {"id": "git_diff", "output": truncate_output(body, 24000)}

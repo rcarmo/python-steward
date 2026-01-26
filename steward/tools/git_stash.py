@@ -37,5 +37,6 @@ def tool_handler(args: Dict) -> ToolResult:
     else:
         raise ValueError("Unsupported stash action")
     exit_code, stdout, stderr = run_captured(cmd, cwd)
-    body = f"exit {exit_code}\n{stdout}{'\nstderr:\n' + stderr if stderr else ''}"
+    stderr_part = "\nstderr:\n" + stderr if stderr else ""
+    body = f"exit {exit_code}\n{stdout}{stderr_part}"
     return {"id": "git_stash", "output": truncate_output(body, 16000)}

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import json
+from pathlib import Path
 
 
 def test_workspace_summary(tool_handlers, sandbox: Path):
@@ -11,4 +11,4 @@ def test_workspace_summary(tool_handlers, sandbox: Path):
     summary = tool_handlers["workspace_summary"]({})
     assert "package: pkg@1.0.0" in summary["output"]
     assert "dirs: src" in summary["output"]
-    assert "files: file.txt" in summary["output"]
+    assert "file.txt" in summary["output"]

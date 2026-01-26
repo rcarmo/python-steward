@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Dict
 
 from ..types import ToolDefinition, ToolResult
-from .shared import ensure_inside_workspace
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "get_python_executable_details",

@@ -1,7 +1,6 @@
 """Typed structures used across the steward runtime."""
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Literal, Optional, Protocol, TypedDict
 
 Role = Literal["system", "user", "assistant", "tool"]
@@ -31,6 +30,9 @@ class ToolResult(TypedDict, total=False):
     id: str
     output: str
     error: bool
+    # Meta-tool fields: if present, runner will synthesize via LLM
+    meta_prompt: str  # Prompt template for LLM synthesis
+    meta_context: str  # Context data to include in synthesis
 
 
 class LLMResult(TypedDict, total=False):

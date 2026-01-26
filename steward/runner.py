@@ -1,13 +1,13 @@
 """Steward orchestrator loop."""
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, DEFAULT_PROVIDER
 from .llm import build_client
 from .logger import HumanEntry, Logger
+from .system_prompt import build_system_prompt
 from .tools import discover_tools
 from .types import LLMClient, LLMResult, Message, ToolCallDescriptor, ToolDefinition
 from .utils import safe_json
@@ -26,9 +26,16 @@ class RunnerOptions:
     enable_human_logs: bool = True
     enable_file_logs: bool = True
     pretty_logs: bool = True
+    session_id: Optional[str] = None
+    custom_instructions: Optional[str] = None
+
+
+PLAN_MODE_PREFIX = "[[PLAN]]"
 
 
 def run_steward(options: RunnerOptions) -> Optional[str]:
+    from .session import get_session_context, init_session
+
     tool_definitions, tool_handlers = discover_tools()
     client = build_client(options.provider or DEFAULT_PROVIDER, options.model or DEFAULT_MODEL, timeout_ms=options.request_timeout_ms)
     logger = Logger(
@@ -40,10 +47,30 @@ def run_steward(options: RunnerOptions) -> Optional[str]:
         pretty=options.pretty_logs,
     )
 
+    # Detect plan mode from prompt prefix
+    prompt = options.prompt
+    plan_mode = prompt.startswith(PLAN_MODE_PREFIX)
+    if plan_mode:
+        prompt = prompt[len(PLAN_MODE_PREFIX):].strip()
+
+    # Initialize session if requested
+    session_context = None
+    if options.session_id:
+        init_session(options.session_id)
+        session_context = get_session_context(options.session_id)
+
     messages: List[Message] = []
-    system_text = options.system_prompt or default_system_prompt([tool["name"] for tool in tool_definitions])
+    if options.system_prompt:
+        system_text = options.system_prompt
+    else:
+        system_text = build_system_prompt(
+            [tool["name"] for tool in tool_definitions],
+            custom_instructions=options.custom_instructions,
+            session_context=session_context,
+            plan_mode=plan_mode,
+        )
     messages.append({"role": "system", "content": system_text})
-    messages.append({"role": "user", "content": options.prompt})
+    messages.append({"role": "user", "content": prompt})
 
     limit = options.max_steps or DEFAULT_MAX_STEPS
     retry_limit = options.retries or 0
@@ -98,6 +125,10 @@ def run_steward(options: RunnerOptions) -> Optional[str]:
                     continue
                 try:
                     result = handler(call["arguments"])
+                    # Handle meta-tool: if result contains meta_prompt, synthesize via LLM
+                    if result.get("meta_prompt"):
+                        synthesized = synthesize_meta_tool(client, result, logger)
+                        result = {"id": result.get("id", call["name"]), "output": synthesized}
                     logger.human(HumanEntry(title=call["name"], body=result.get("output", ""), variant=todo_variant))
                     logger.json(
                         {
@@ -167,22 +198,6 @@ def call_model_with_policies(
         stop_spinner()
 
 
-def default_system_prompt(tool_names: List[str]) -> str:
-    tools = ", ".join(tool_names)
-    return "\n".join(
-        [
-            "You are GitHub Copilot running in a local CLI environment.",
-            f"Tools: {tools}.",
-            "Stay within the current workspace; do not invent files or paths.",
-            "On wake-up, check the existing todo plan (via manage_todo_list) for pending items before acting.",
-            "Briefly state your intent before calling tools; narrate what you are doing and why.",
-            "When multiple actions are needed, manage the conversation plan via manage_todo_list: send the full todoList (id/title/description/status) each time and let the tool persist it to .steward-plan.json.",
-            "Use tools to gather context before editing. Keep replies short and task-focused.",
-            "After tools finish, give a concise result and, if helpful, next steps.",
-        ]
-    )
-
-
 def format_tool_calls(calls: List[ToolCallDescriptor]) -> str:
     return ", ".join(call["name"] for call in calls)
 
@@ -195,3 +210,21 @@ def summarize_plan_args(call: ToolCallDescriptor) -> Optional[str]:
         return None
     ids = [item.get("id") for item in todo_list if isinstance(item, dict) and isinstance(item.get("id"), int)]
     return f"todoList size={len(todo_list)} ids={','.join(str(i) for i in ids)}"
+
+
+def synthesize_meta_tool(client: LLMClient, result: dict, logger: Logger) -> str:
+    """Synthesize a response from a meta-tool using the LLM."""
+    meta_prompt = result.get("meta_prompt", "")
+    logger.human(HumanEntry(title="meta-tool", body="synthesizing response...", variant="tool"))
+    synthesis_messages: List[Message] = [
+        {"role": "system", "content": "You are a helpful assistant that synthesizes information from search results into clear, cited answers."},
+        {"role": "user", "content": meta_prompt},
+    ]
+    stop_spinner = logger.start_spinner()
+    try:
+        synthesis_result = client.generate(synthesis_messages, tools=None)
+        return synthesis_result.get("content") or "(no synthesis generated)"
+    except Exception as err:
+        return f"[synthesis error] {err}\n\nRaw context:\n{result.get('meta_context', '')}"
+    finally:
+        stop_spinner()

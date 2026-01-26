@@ -4,7 +4,6 @@ from __future__ import annotations
 from os import getenv
 from typing import Optional
 
-
 DEFAULT_MODEL = "gpt-4o-mini"
 DEFAULT_PROVIDER = "echo"
 DEFAULT_MAX_STEPS = 32

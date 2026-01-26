@@ -5,7 +5,7 @@ import json
 import re
 import subprocess
 from pathlib import Path
-from typing import Callable, Iterable, List
+from typing import Callable
 
 from ..config import env_int
 

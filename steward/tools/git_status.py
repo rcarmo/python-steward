@@ -21,5 +21,6 @@ def tool_handler(args: Dict) -> ToolResult:
     cwd = normalize_path(args.get("path")) if isinstance(args.get("path"), str) else Path.cwd()
     ensure_inside_workspace(cwd)
     exit_code, stdout, stderr = run_captured(["git", "status", "--short", "--branch"], cwd)
-    body = f"exit {exit_code}\n{stdout}{'\nstderr:\n' + stderr if stderr else ''}"
+    stderr_part = "\nstderr:\n" + stderr if stderr else ""
+    body = f"exit {exit_code}\n{stdout}{stderr_part}"
     return {"id": "git_status", "output": truncate_output(body, 16000)}

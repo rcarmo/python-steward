@@ -1,0 +1,142 @@
+"""Tests for runner module."""
+from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+
+def test_default_system_prompt():
+    from steward.system_prompt import default_system_prompt
+
+    prompt = default_system_prompt(["view", "grep", "create"])
+    assert "view" in prompt
+    assert "grep" in prompt
+    assert "create" in prompt
+    assert "Steward" in prompt
+
+
+def test_format_tool_calls():
+    from steward.runner import format_tool_calls
+
+    calls = [
+        {"id": "1", "name": "view", "arguments": {}},
+        {"id": "2", "name": "grep", "arguments": {}},
+    ]
+    result = format_tool_calls(calls)
+    assert "view" in result
+    assert "grep" in result
+
+
+def test_summarize_plan_args():
+    from steward.runner import summarize_plan_args
+
+    # Non-todo call returns None
+    call = {"id": "1", "name": "view", "arguments": {"path": "test.txt"}}
+    assert summarize_plan_args(call) is None
+
+    # Todo call returns summary
+    call = {
+        "id": "1",
+        "name": "manage_todo_list",
+        "arguments": {
+            "todoList": [
+                {"id": 1, "title": "Task 1", "status": "pending"},
+                {"id": 2, "title": "Task 2", "status": "done"},
+            ]
+        }
+    }
+    result = summarize_plan_args(call)
+    assert "size=2" in result
+    assert "1,2" in result
+
+
+def test_synthesize_meta_tool():
+    from steward.logger import Logger
+    from steward.runner import synthesize_meta_tool
+
+    mock_client = MagicMock()
+    mock_client.generate.return_value = {"content": "Synthesized response"}
+
+    mock_logger = MagicMock(spec=Logger)
+    mock_logger.start_spinner.return_value = MagicMock()
+
+    result = {
+        "meta_prompt": "Synthesize this: test data",
+        "meta_context": "test data"
+    }
+
+    output = synthesize_meta_tool(mock_client, result, mock_logger)
+    assert output == "Synthesized response"
+    mock_client.generate.assert_called_once()
+
+
+def test_synthesize_meta_tool_error():
+    from steward.logger import Logger
+    from steward.runner import synthesize_meta_tool
+
+    mock_client = MagicMock()
+    mock_client.generate.side_effect = Exception("API error")
+
+    mock_logger = MagicMock(spec=Logger)
+    mock_logger.start_spinner.return_value = MagicMock()
+
+    result = {
+        "meta_prompt": "test prompt",
+        "meta_context": "context data"
+    }
+
+    output = synthesize_meta_tool(mock_client, result, mock_logger)
+    assert "[synthesis error]" in output
+    assert "context data" in output
+
+
+def test_synthesize_meta_tool_empty_response():
+    from steward.logger import Logger
+    from steward.runner import synthesize_meta_tool
+
+    mock_client = MagicMock()
+    mock_client.generate.return_value = {"content": None}
+
+    mock_logger = MagicMock(spec=Logger)
+    mock_logger.start_spinner.return_value = MagicMock()
+
+    result = {"meta_prompt": "test", "meta_context": "ctx"}
+    output = synthesize_meta_tool(mock_client, result, mock_logger)
+    assert "no synthesis" in output.lower()
+
+
+def test_runner_options():
+    from steward.runner import RunnerOptions
+
+    opts = RunnerOptions(
+        prompt="test prompt",
+        system_prompt="custom system",
+        max_steps=10,
+        provider="echo",
+        model="test-model"
+    )
+    assert opts.prompt == "test prompt"
+    assert opts.max_steps == 10
+
+
+@patch('steward.runner.build_client')
+@patch('steward.runner.discover_tools')
+def test_run_steward_basic(mock_discover, mock_build, sandbox: Path):
+    from steward.runner import RunnerOptions, run_steward
+
+    # Setup mocks
+    mock_discover.return_value = ([], {})
+    mock_client = MagicMock()
+    mock_client.generate.return_value = {"content": "Final response"}
+    mock_build.return_value = mock_client
+
+    opts = RunnerOptions(
+        prompt="test",
+        provider="echo",
+        model="test",
+        enable_human_logs=False,
+        enable_file_logs=False
+    )
+
+    result = run_steward(opts)
+    assert result == "Final response"

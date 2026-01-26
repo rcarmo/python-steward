@@ -18,8 +18,42 @@ dependencies = [
     "quickjs>=1.19.4",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.4.0",
+]
+
 [project.scripts]
 steward = "steward.cli:main"
+steward-mcp = "steward.mcp:main"
 
 [tool.setuptools.packages.find]
 include = ["steward", "steward.*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=steward --cov-report=term-missing --cov-fail-under=80"
+
+[tool.coverage.run]
+source = ["steward"]
+omit = [
+    "steward/__pycache__/*",
+    "steward/mcp_client.py",  # Complex subprocess management, tested via integration
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
