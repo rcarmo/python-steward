@@ -7,7 +7,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 
-DEFAULT_MODEL = "gpt-4o-mini"
+DEFAULT_MODEL = "gpt-5-mini"
 DEFAULT_PROVIDER = "echo"
 DEFAULT_MAX_STEPS = 32
 DEFAULT_REQUEST_TIMEOUT_MS: Optional[int] = None
