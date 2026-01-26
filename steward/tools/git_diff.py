@@ -34,4 +34,4 @@ def tool_git_diff(
     exit_code, stdout, stderr = run_captured(cmd, cwd)
     stderr_part = "\nstderr:\n" + stderr if stderr else ""
     body = f"exit {exit_code}\n{stdout}{stderr_part}"
-    return {"id": "git_diff", "output": truncate_output(body, 24000)}
+    return {"id": "git_diff", "output": truncate_output(body, 24000), "next_tool": ["edit", "git_commit"]}

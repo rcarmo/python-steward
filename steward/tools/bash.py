@@ -118,7 +118,7 @@ def _run_sync(command: str, cwd: Path, initial_wait: float, max_output_bytes: in
                 "description": description,
             })
 
-        return {"id": "bash", "output": output}
+        return {"id": "bash", "output": output, "next_tool": ["view", "grep"]}
 
 
 def _run_async(command: str, cwd: Path, detach: bool, audit_enabled: bool, description: str) -> ToolResult:
@@ -144,7 +144,7 @@ def _run_async(command: str, cwd: Path, detach: bool, audit_enabled: bool, descr
                 "pid": proc.pid,
                 "description": description,
             })
-        return {"id": "bash", "output": f"Started detached process (pid: {proc.pid}, sessionId: {session_id})"}
+        return {"id": "bash", "output": f"Started detached process (pid: {proc.pid}, sessionId: {session_id})", "next_tool": ["list_bash"]}
     else:
         # Async but attached - can read/write later
         proc = subprocess.Popen(
@@ -175,7 +175,7 @@ def _run_async(command: str, cwd: Path, detach: bool, audit_enabled: bool, descr
                 "description": description,
             })
 
-        return {"id": "bash", "output": f"Started async process (pid: {proc.pid}, sessionId: {session_id})"}
+        return {"id": "bash", "output": f"Started async process (pid: {proc.pid}, sessionId: {session_id})", "next_tool": ["read_bash", "write_bash"]}
 
 
 def get_session(session_id: str) -> Optional[dict]:

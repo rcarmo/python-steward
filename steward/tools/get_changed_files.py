@@ -68,4 +68,4 @@ def tool_get_changed_files(
                 continue
             output_lines.append(f"{key}: {rel_path(abs_item)}")
 
-    return {"id": "get_changed_files", "output": "\n".join(output_lines)}
+    return {"id": "get_changed_files", "output": "\n".join(output_lines), "next_tool": ["git_diff", "view"]}

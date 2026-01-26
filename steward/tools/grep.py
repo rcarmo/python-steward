@@ -178,6 +178,6 @@ def tool_grep(
         output = "\n".join(results)
 
     if not output:
-        return {"id": "grep", "output": "No matches found"}
+        return {"id": "grep", "output": "No matches found", "next_tool": ["glob"]}
 
-    return {"id": "grep", "output": output}
+    return {"id": "grep", "output": output, "next_tool": ["view", "edit"]}

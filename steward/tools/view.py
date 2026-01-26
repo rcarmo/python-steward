@@ -98,4 +98,4 @@ def tool_view(path: str = ".", view_range: Optional[List[int]] = None) -> ToolRe
     if truncated:
         result += "\n[truncated]"
 
-    return {"id": "view", "output": result}
+    return {"id": "view", "output": result, "next_tool": ["edit", "grep"]}

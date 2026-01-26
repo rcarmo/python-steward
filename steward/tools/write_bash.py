@@ -72,7 +72,7 @@ def tool_write_bash(sessionId: str, input: Optional[str] = None, delay: Optional
         if stderr:
             output_parts.append(stderr)
         output = "\n".join(output_parts) if output_parts else "(no output)"
-        return {"id": "write_bash", "output": f"[completed, exit code {proc.returncode}]\n{truncate_output(output, 32000)}"}
+        return {"id": "write_bash", "output": f"[completed, exit code {proc.returncode}]\n{truncate_output(output, 32000)}", "next_tool": ["stop_bash"]}
 
     output_parts.append(f"[still running, pid: {proc.pid}]")
-    return {"id": "write_bash", "output": "\n".join(output_parts)}
+    return {"id": "write_bash", "output": "\n".join(output_parts), "next_tool": ["read_bash", "write_bash"]}

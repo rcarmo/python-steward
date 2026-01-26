@@ -31,4 +31,4 @@ def tool_replace_string_in_file(path: str, oldString: str, newString: str) -> To
     new_content = content.replace(oldString, newString, 1)
     abs_path.write_text(new_content, encoding="utf8")
 
-    return {"id": "replace_string_in_file", "output": f"Replaced 1 occurrence in {rel_path(abs_path)}"}
+    return {"id": "replace_string_in_file", "output": f"Replaced 1 occurrence in {rel_path(abs_path)}", "next_tool": ["view", "git_diff"]}

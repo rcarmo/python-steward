@@ -25,4 +25,4 @@ def tool_git_commit(message: str, path: Optional[str] = None, all: bool = False)
     exit_code, stdout, stderr = run_captured(cmd, cwd)
     stderr_part = "\nstderr:\n" + stderr if stderr else ""
     body = f"exit {exit_code}\n{stdout}{stderr_part}"
-    return {"id": "git_commit", "output": truncate_output(body, 16000)}
+    return {"id": "git_commit", "output": truncate_output(body, 16000), "next_tool": ["git_status"]}

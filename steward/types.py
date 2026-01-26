@@ -33,6 +33,8 @@ class ToolResult(TypedDict, total=False):
     # Meta-tool fields: if present, runner will synthesize via LLM
     meta_prompt: str  # Prompt template for LLM synthesis
     meta_context: str  # Context data to include in synthesis
+    # Next tool suggestions for umcp-style workflow hints
+    next_tool: List[str]  # Recommended tools to call next
 
 
 class LLMResult(TypedDict, total=False):

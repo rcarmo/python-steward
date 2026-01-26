@@ -24,4 +24,4 @@ def tool_workspace_summary() -> ToolResult:
         except json.JSONDecodeError:
             pkg_info = "package: none"
     summary = [pkg_info, f"dirs: {', '.join(dirs) if dirs else '-'}", f"files: {', '.join(files) if files else '-'}"]
-    return {"id": "workspace_summary", "output": "\n".join(summary)}
+    return {"id": "workspace_summary", "output": "\n".join(summary), "next_tool": ["view", "glob", "grep"]}

@@ -10,7 +10,7 @@ def tool_list_bash() -> ToolResult:
     sessions = list_sessions()
 
     if not sessions:
-        return {"id": "list_bash", "output": "No active sessions"}
+        return {"id": "list_bash", "output": "No active sessions", "next_tool": ["bash"]}
 
     lines = []
     for sid, info in sessions.items():
@@ -18,4 +18,4 @@ def tool_list_bash() -> ToolResult:
         status = "running" if proc.poll() is None else f"completed (exit {proc.returncode})"
         lines.append(f"- {sid}: {status}, cmd: {info['command'][:50]}..., started: {info['started']}")
 
-    return {"id": "list_bash", "output": "\n".join(lines)}
+    return {"id": "list_bash", "output": "\n".join(lines), "next_tool": ["read_bash", "stop_bash"]}

@@ -24,7 +24,7 @@ def tool_mcp_call(server: str, tool: str, arguments: Optional[Dict[str, Any]] = 
 
     try:
         result = call_tool(server, tool, args)
-        return {"id": "mcp_call", "output": result}
+        return {"id": "mcp_call", "output": result, "next_tool": ["mcp_call"]}
     except Exception as e:
         return {
             "id": "mcp_call",

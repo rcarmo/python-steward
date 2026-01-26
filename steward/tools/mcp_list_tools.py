@@ -57,4 +57,4 @@ def tool_mcp_list_tools(server: str) -> ToolResult:
 
     lines.append("Use mcp_call to invoke a tool.")
 
-    return {"id": "mcp_list_tools", "output": "\n".join(lines)}
+    return {"id": "mcp_list_tools", "output": "\n".join(lines), "next_tool": ["mcp_call"]}

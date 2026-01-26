@@ -58,9 +58,9 @@ def tool_glob(pattern: str, path: Optional[str] = None) -> ToolResult:
             break
 
     if not results:
-        return {"id": "glob", "output": "No matching files found"}
+        return {"id": "glob", "output": "No matching files found", "next_tool": ["grep"]}
 
-    return {"id": "glob", "output": "\n".join(sorted(results))}
+    return {"id": "glob", "output": "\n".join(sorted(results)), "next_tool": ["view", "grep"]}
 
 
 def expand_braces(pattern: str) -> List[str]:

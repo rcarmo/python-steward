@@ -28,4 +28,4 @@ def tool_mcp_list_servers() -> ToolResult:
 
     lines.append("\nUse mcp_list_tools to see available tools from a server.")
 
-    return {"id": "mcp_list_servers", "output": "\n".join(lines)}
+    return {"id": "mcp_list_servers", "output": "\n".join(lines), "next_tool": ["mcp_list_tools"]}

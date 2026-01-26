@@ -58,7 +58,7 @@ def tool_apply_patch(
     if dryRun:
         return {"id": "edit", "output": f"Dry-run OK for {rel_path(abs_path)}"}
     abs_path.write_text(next_text, encoding="utf8")
-    return {"id": "edit", "output": f"Patched {rel_path(abs_path)}"}
+    return {"id": "edit", "output": f"Patched {rel_path(abs_path)}", "next_tool": ["view", "git_diff"]}
 
 
 def _apply_patch_to_file(abs_path: Path, patch_text: str) -> str | None:

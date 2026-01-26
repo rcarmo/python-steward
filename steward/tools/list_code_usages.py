@@ -63,6 +63,6 @@ def tool_list_code_usages(
                 if pattern.search(line):
                     matches.append(f"{rel_path(file)}:{idx}: {line.strip()}")
                     if len(matches) >= maxResults:
-                        return {"id": "list_code_usages", "output": "\n".join(matches)}
+                        return {"id": "list_code_usages", "output": "\n".join(matches), "next_tool": ["view", "edit"]}
 
-    return {"id": "list_code_usages", "output": "\n".join(matches)}
+    return {"id": "list_code_usages", "output": "\n".join(matches), "next_tool": ["view", "edit"]}

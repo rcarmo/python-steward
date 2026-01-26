@@ -19,4 +19,4 @@ def tool_git_status(path: Optional[str] = None) -> ToolResult:
     exit_code, stdout, stderr = run_captured(["git", "status", "--short", "--branch"], cwd)
     stderr_part = "\nstderr:\n" + stderr if stderr else ""
     body = f"exit {exit_code}\n{stdout}{stderr_part}"
-    return {"id": "git_status", "output": truncate_output(body, 16000)}
+    return {"id": "git_status", "output": truncate_output(body, 16000), "next_tool": ["git_diff", "git_commit"]}

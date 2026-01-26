@@ -45,4 +45,4 @@ def tool_edit(path: str, old_str: str, new_str: str) -> ToolResult:
     else:
         action = f"Replaced {old_lines} line(s) with {new_lines} line(s)"
 
-    return {"id": "edit", "output": f"{action} in {rel_path(abs_path)}"}
+    return {"id": "edit", "output": f"{action} in {rel_path(abs_path)}", "next_tool": ["view", "git_diff"]}

@@ -109,4 +109,4 @@ def tool_web_fetch(
     output_lines.append("")
     output_lines.append(paginated)
 
-    return {"id": "web_fetch", "output": "\n".join(output_lines)}
+    return {"id": "web_fetch", "output": "\n".join(output_lines), "next_tool": ["web_search"]}

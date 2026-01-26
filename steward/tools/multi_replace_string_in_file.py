@@ -73,4 +73,4 @@ def tool_multi_replace_string_in_file(replacements: List[Dict[str, str]]) -> Too
     output = "\n".join(summary_parts)
     has_error = bool(errors)
 
-    return {"id": "multi_replace_string_in_file", "output": output, "error": has_error}
+    return {"id": "multi_replace_string_in_file", "output": output, "error": has_error, "next_tool": ["view", "git_diff"]}

@@ -35,7 +35,7 @@ def tool_read_bash(sessionId: str, delay: Optional[float] = None) -> ToolResult:
         if stderr:
             output_parts.append(stderr)
         output = "\n".join(output_parts) if output_parts else "(no output)"
-        return {"id": "read_bash", "output": f"[completed, exit code {proc.returncode}]\n{truncate_output(output, 32000)}"}
+        return {"id": "read_bash", "output": f"[completed, exit code {proc.returncode}]\n{truncate_output(output, 32000)}", "next_tool": ["stop_bash"]}
 
     # Process still running - read available output
     output_parts.append(f"[still running, pid: {proc.pid}]")
@@ -49,4 +49,4 @@ def tool_read_bash(sessionId: str, delay: Optional[float] = None) -> ToolResult:
         except Exception:
             pass
 
-    return {"id": "read_bash", "output": "\n".join(output_parts)}
+    return {"id": "read_bash", "output": "\n".join(output_parts), "next_tool": ["write_bash", "read_bash"]}

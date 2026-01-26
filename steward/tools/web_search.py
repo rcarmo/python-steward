@@ -36,7 +36,7 @@ def tool_web_search(query: str) -> ToolResult:
     results = _parse_duckduckgo_results(html, max_results)
 
     if not results:
-        return {"id": "web_search", "output": f"No results found for: {query}"}
+        return {"id": "web_search", "output": f"No results found for: {query}", "next_tool": ["web_fetch"]}
 
     # Build context for LLM synthesis
     context_lines = [f"Query: {query}", "", "Search Results:"]
@@ -58,6 +58,7 @@ def tool_web_search(query: str) -> ToolResult:
             f"{context}"
         ),
         "meta_context": context,
+        "next_tool": ["web_fetch"],
     }
 
 

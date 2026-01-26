@@ -12,4 +12,4 @@ def tool_stop_bash(sessionId: str) -> ToolResult:
         sessionId: The session ID to stop
     """
     result = stop_session(sessionId)
-    return {"id": "stop_bash", "output": result}
+    return {"id": "stop_bash", "output": result, "next_tool": ["list_bash"]}
