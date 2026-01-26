@@ -230,7 +230,8 @@ def call_tool(server_name: str, tool_name: str, arguments: Dict[str, Any]) -> st
     text_parts = []
     for item in content:
         if isinstance(item, dict) and item.get("type") == "text":
-            text_parts.append(item.get("text", ""))
+            text_val = item.get("text")
+            text_parts.append(text_val if text_val is not None else "")
 
     return "\n".join(text_parts) if text_parts else str(result)
 
