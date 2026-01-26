@@ -6,12 +6,16 @@ from os import chdir
 from pathlib import Path
 from typing import Optional, Union
 
+from .config import ensure_dotenv_loaded
 from .runner import RunnerOptions, run_steward
 from .session import generate_session_id
 
 
 def parse_args() -> Union[RunnerOptions, dict]:
     """Parse CLI arguments. Returns RunnerOptions for single run, or dict with 'repl' key for REPL mode."""
+    # Load .env early before parsing args
+    ensure_dotenv_loaded()
+
     parser = argparse.ArgumentParser(description="steward <prompt> [options]")
     parser.add_argument("prompt", nargs=argparse.REMAINDER, help="Prompt to run")
     parser.add_argument("--repl", action="store_true", help="Start interactive REPL mode")

@@ -2,21 +2,47 @@
 from __future__ import annotations
 
 from os import getenv
+from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
-
-# Load .env file from current directory (if present)
-load_dotenv()
 
 DEFAULT_MODEL = "gpt-4o-mini"
 DEFAULT_PROVIDER = "echo"
 DEFAULT_MAX_STEPS = 32
 DEFAULT_REQUEST_TIMEOUT_MS: Optional[int] = None
 
+# Track if we've loaded .env
+_dotenv_loaded = False
+
+
+def ensure_dotenv_loaded() -> None:
+    """Load .env file from current directory if not already loaded."""
+    global _dotenv_loaded
+    if _dotenv_loaded:
+        return
+
+    # Try to load from current directory
+    env_file = Path.cwd() / ".env"
+    if env_file.exists():
+        load_dotenv(env_file)
+    else:
+        # Also try parent directories up to home
+        for parent in Path.cwd().parents:
+            env_file = parent / ".env"
+            if env_file.exists():
+                load_dotenv(env_file)
+                break
+            if parent == Path.home():
+                break
+
+    _dotenv_loaded = True
+
 
 def detect_provider() -> str:
     """Autodetect provider based on available environment variables."""
+    ensure_dotenv_loaded()
+
     # Check Azure first (more specific)
     azure_endpoint = getenv("STEWARD_AZURE_OPENAI_ENDPOINT") or getenv("AZURE_OPENAI_ENDPOINT")
     azure_key = getenv("STEWARD_AZURE_OPENAI_KEY") or getenv("AZURE_OPENAI_KEY")

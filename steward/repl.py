@@ -7,7 +7,7 @@ from pathlib import Path
 from sys import stderr, stdout
 from typing import Optional
 
-from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, detect_provider
+from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, detect_provider, ensure_dotenv_loaded
 from .runner import RunnerOptions, run_steward
 from .session import generate_session_id
 
@@ -96,6 +96,8 @@ def run_repl(
     session_id: Optional[str] = None,
 ) -> None:
     """Run the REPL loop."""
+    # Load .env early
+    ensure_dotenv_loaded()
     setup_readline()
 
     # Generate session ID if not provided (REPL typically wants persistence)
