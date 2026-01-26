@@ -51,11 +51,15 @@ def test_summarize_plan_args():
 
 
 def test_synthesize_meta_tool():
+    import asyncio
     from steward.logger import Logger
-    from steward.runner import synthesize_meta_tool
+    from steward.runner import synthesize_meta_tool_async
+
+    async def mock_generate(*args, **kwargs):
+        return {"content": "Synthesized response"}
 
     mock_client = MagicMock()
-    mock_client.generate.return_value = {"content": "Synthesized response"}
+    mock_client.generate = mock_generate
 
     mock_logger = MagicMock(spec=Logger)
     mock_logger.start_spinner.return_value = MagicMock()
@@ -65,17 +69,20 @@ def test_synthesize_meta_tool():
         "meta_context": "test data"
     }
 
-    output = synthesize_meta_tool(mock_client, result, mock_logger)
+    output = asyncio.run(synthesize_meta_tool_async(mock_client, result, mock_logger))
     assert output == "Synthesized response"
-    mock_client.generate.assert_called_once()
 
 
 def test_synthesize_meta_tool_error():
+    import asyncio
     from steward.logger import Logger
-    from steward.runner import synthesize_meta_tool
+    from steward.runner import synthesize_meta_tool_async
+
+    async def mock_generate(*args, **kwargs):
+        raise Exception("API error")
 
     mock_client = MagicMock()
-    mock_client.generate.side_effect = Exception("API error")
+    mock_client.generate = mock_generate
 
     mock_logger = MagicMock(spec=Logger)
     mock_logger.start_spinner.return_value = MagicMock()
@@ -85,23 +92,27 @@ def test_synthesize_meta_tool_error():
         "meta_context": "context data"
     }
 
-    output = synthesize_meta_tool(mock_client, result, mock_logger)
+    output = asyncio.run(synthesize_meta_tool_async(mock_client, result, mock_logger))
     assert "[synthesis error]" in output
     assert "context data" in output
 
 
 def test_synthesize_meta_tool_empty_response():
+    import asyncio
     from steward.logger import Logger
-    from steward.runner import synthesize_meta_tool
+    from steward.runner import synthesize_meta_tool_async
+
+    async def mock_generate(*args, **kwargs):
+        return {"content": None}
 
     mock_client = MagicMock()
-    mock_client.generate.return_value = {"content": None}
+    mock_client.generate = mock_generate
 
     mock_logger = MagicMock(spec=Logger)
     mock_logger.start_spinner.return_value = MagicMock()
 
     result = {"meta_prompt": "test", "meta_context": "ctx"}
-    output = synthesize_meta_tool(mock_client, result, mock_logger)
+    output = asyncio.run(synthesize_meta_tool_async(mock_client, result, mock_logger))
     assert "no synthesis" in output.lower()
 
 
@@ -126,8 +137,12 @@ def test_run_steward_basic(mock_discover, mock_build, sandbox: Path):
 
     # Setup mocks
     mock_discover.return_value = ([], {})
+
+    async def mock_generate(*args, **kwargs):
+        return {"content": "Final response"}
+
     mock_client = MagicMock()
-    mock_client.generate.return_value = {"content": "Final response"}
+    mock_client.generate = mock_generate
     mock_build.return_value = mock_client
 
     opts = RunnerOptions(

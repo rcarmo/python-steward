@@ -1,6 +1,7 @@
 """Tests for llm module."""
 from __future__ import annotations
 
+import asyncio
 import os
 from unittest.mock import patch
 
@@ -9,7 +10,7 @@ def test_build_client_echo():
     from steward.llm import build_client
 
     client = build_client("echo", "test-model")
-    result = client.generate([{"role": "user", "content": "test"}])
+    result = asyncio.run(client.generate([{"role": "user", "content": "test"}]))
     assert "content" in result
 
 
@@ -18,7 +19,7 @@ def test_build_client_unknown_provider():
 
     # Unknown provider falls back to EchoClient
     client = build_client("unknown_provider", "model")
-    result = client.generate([{"role": "user", "content": "test"}])
+    result = asyncio.run(client.generate([{"role": "user", "content": "test"}]))
     assert "Echo" in result.get("content", "")
 
 
@@ -47,7 +48,7 @@ def test_echo_client_with_tools():
 
     client = build_client("echo", "test")
     tools = [{"name": "test_tool", "description": "Test", "parameters": {"type": "object", "properties": {}}}]
-    result = client.generate([{"role": "user", "content": "test"}], tools)
+    result = asyncio.run(client.generate([{"role": "user", "content": "test"}], tools))
     assert "content" in result or "toolCalls" in result
 
 
@@ -61,7 +62,7 @@ def test_echo_client_multiple_messages():
         {"role": "assistant", "content": "Hi there"},
         {"role": "user", "content": "Final message"},
     ]
-    result = client.generate(messages)
+    result = asyncio.run(client.generate(messages))
     assert "Echo" in result.get("content", "")
     assert "Final message" in result.get("content", "")
 
@@ -75,7 +76,7 @@ def test_echo_client_stream_handler_called():
         received.append((chunk, done))
 
     client = build_client("echo", "test")
-    result = client.generate([{"role": "user", "content": "hi"}], stream_handler=handler)
+    result = asyncio.run(client.generate([{"role": "user", "content": "hi"}], stream_handler=handler))
     assert result.get("content") == "Echo: hi"
     assert received == [("Echo: hi", True)]
 
@@ -120,20 +121,25 @@ def test_to_tool_calls_empty():
     assert _to_tool_calls([]) is None
 
 
-@patch('steward.llm.OpenAI')
+@patch('steward.llm.AsyncOpenAI')
 def test_openai_client_empty_choices(mock_openai):
+    import asyncio
     from steward.llm import OpenAIClient
 
+    async def mock_create(**_kwargs):
+        return type("Resp", (), {"choices": []})()
+
     mock_client = mock_openai.return_value
-    mock_client.chat.completions.create.return_value = type("Resp", (), {"choices": []})()
+    mock_client.chat.completions.create = mock_create
     client = OpenAIClient("gpt-4", api_key="test")
-    result = client.generate([{"role": "user", "content": "hi"}])
+    result = asyncio.run(client.generate([{"role": "user", "content": "hi"}]))
     assert result["content"] is None
     assert result["toolCalls"] is None
 
 
-@patch('steward.llm.OpenAI')
+@patch('steward.llm.AsyncOpenAI')
 def test_openai_stream_tool_calls_none_keeps_previous(mock_openai):
+    import asyncio
     from steward.llm import OpenAIClient
 
     class Delta:
@@ -151,17 +157,17 @@ def test_openai_stream_tool_calls_none_keeps_previous(mock_openai):
 
     stream_events = [
         Event(Delta(tool_calls=[
-            type("Call", (), {"id": "1", "function": type("Fn", (), {"name": "view", "arguments": "{}"})()})()
+            type("Call", (), {"index": 0, "id": "1", "function": type("Fn", (), {"name": "view", "arguments": "{}"})()})()
         ])),
         Event(Delta(content="ok", tool_calls=None)),
     ]
 
-    def stream_create(**_kwargs):
+    async def stream_create(**_kwargs):
         for event in stream_events:
             yield event
 
     mock_client = mock_openai.return_value
-    mock_client.chat.completions.create.side_effect = stream_create
+    mock_client.chat.completions.create = stream_create
     client = OpenAIClient("gpt-4", api_key="test")
-    result = client.generate([{"role": "user", "content": "hi"}], stream_handler=lambda *_args: None)
+    result = asyncio.run(client.generate([{"role": "user", "content": "hi"}], stream_handler=lambda *_args: None))
     assert result["toolCalls"] is not None

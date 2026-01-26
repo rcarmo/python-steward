@@ -1,15 +1,17 @@
 """Steward orchestrator loop."""
 from __future__ import annotations
 
+import asyncio
+import inspect
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Callable, Dict, List, Optional
 
 from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, detect_provider
 from .llm import build_client
 from .logger import HumanEntry, Logger
 from .system_prompt import build_system_prompt
 from .tools import discover_tools
-from .types import LLMClient, LLMResult, Message, StreamHandler, ToolCallDescriptor, ToolDefinition
+from .types import LLMClient, LLMResult, Message, StreamHandler, ToolCallDescriptor, ToolDefinition, ToolResult
 from .utils import safe_json
 
 
@@ -51,6 +53,11 @@ def run_steward(options: RunnerOptions) -> Optional[str]:
 
 
 def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
+    """Run steward synchronously (wraps async version)."""
+    return asyncio.run(run_steward_async(options))
+
+
+async def run_steward_async(options: RunnerOptions) -> RunnerResult:
     """Run steward and return result with full conversation history for multi-turn conversations."""
     from .conversation import DEFAULT_MAX_HISTORY_TOKENS, should_truncate, truncate_history
     from .session import get_session_context, init_session
@@ -129,7 +136,7 @@ def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
 
     for step in range(limit):
         try:
-            response = call_model_with_policies(
+            response = await call_model_with_policies(
                 client=client,
                 messages=messages,
                 retry_limit=retry_limit,
@@ -170,45 +177,16 @@ def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
                 )
             )
             messages.append({"role": "assistant", "content": response.get("content"), "tool_calls": tool_calls})
-            for call in tool_calls:
-                handler = tool_handlers.get(call["name"])
-                todo_variant = "todo" if call["name"] == "manage_todo_list" else "tool"
-                arg_body = summarize_plan_args(call) or f"args={safe_json(call['arguments'])}"
-                logger.human(HumanEntry(title=call["name"], body=arg_body, variant=todo_variant))
-                if not handler:
-                    messages.append({"role": "tool", "content": f"Unknown tool {call['name']}", "tool_call_id": call["id"]})
-                    continue
-                try:
-                    result = handler(call["arguments"])
-                    # Handle meta-tool: if result contains meta_prompt, synthesize via LLM
-                    if result.get("meta_prompt"):
-                        synthesized = synthesize_meta_tool(client, result, logger)
-                        result = {"id": result.get("id", call["name"]), "output": synthesized}
-                    logger.human(HumanEntry(title=call["name"], body=result.get("output", ""), variant=todo_variant))
-                    logger.json(
-                        {
-                            "type": "tool_result",
-                            "step": step,
-                            "tool": call["name"],
-                            "arguments": call["arguments"],
-                            "output": result.get("output"),
-                            "error": result.get("error") is True,
-                        }
-                    )
-                    messages.append({"role": "tool", "content": result.get("output") or "", "tool_call_id": call["id"]})
-                except Exception as err:  # noqa: BLE001
-                    error_msg = str(err)
-                    logger.human(HumanEntry(title=call["name"], body=f"error: {error_msg}", variant="error"))
-                    logger.json(
-                        {
-                            "type": "tool_error",
-                            "step": step,
-                            "tool": call["name"],
-                            "arguments": call["arguments"],
-                            "error": error_msg,
-                        }
-                    )
-                    messages.append({"role": "tool", "content": f"error: {error_msg}", "tool_call_id": call["id"]})
+
+            # Execute tool calls in parallel
+            results = await execute_tools_parallel(
+                tool_calls, tool_handlers, client, logger, step
+            )
+
+            # Append results to messages
+            for call, result in zip(tool_calls, results):
+                messages.append({"role": "tool", "content": result.get("output") or "", "tool_call_id": call["id"]})
+
             continue
 
         if response.get("content"):
@@ -221,7 +199,70 @@ def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
     return RunnerResult(response=None, messages=messages)
 
 
-def call_model_with_policies(
+async def execute_tools_parallel(
+    tool_calls: List[ToolCallDescriptor],
+    tool_handlers: Dict[str, Callable],
+    client: LLMClient,
+    logger: Logger,
+    step: int,
+) -> List[ToolResult]:
+    """Execute multiple tool calls in parallel using asyncio."""
+
+    async def run_one(call: ToolCallDescriptor) -> ToolResult:
+        handler = tool_handlers.get(call["name"])
+        todo_variant = "todo" if call["name"] == "manage_todo_list" else "tool"
+        arg_body = summarize_plan_args(call) or f"args={safe_json(call['arguments'])}"
+        logger.human(HumanEntry(title=call["name"], body=arg_body, variant=todo_variant))
+
+        if not handler:
+            return {"id": call["name"], "output": f"Unknown tool {call['name']}", "error": True}
+
+        try:
+            # Check if handler is async or sync
+            if inspect.iscoroutinefunction(handler):
+                result = await handler(call["arguments"])
+            else:
+                # Run sync handler in thread pool to avoid blocking
+                result = await asyncio.get_event_loop().run_in_executor(
+                    None, handler, call["arguments"]
+                )
+
+            # Handle meta-tool: if result contains meta_prompt, synthesize via LLM
+            if result.get("meta_prompt"):
+                synthesized = await synthesize_meta_tool_async(client, result, logger)
+                result = {"id": result.get("id", call["name"]), "output": synthesized}
+
+            logger.human(HumanEntry(title=call["name"], body=result.get("output", ""), variant=todo_variant))
+            logger.json(
+                {
+                    "type": "tool_result",
+                    "step": step,
+                    "tool": call["name"],
+                    "arguments": call["arguments"],
+                    "output": result.get("output"),
+                    "error": result.get("error") is True,
+                }
+            )
+            return result
+        except Exception as err:  # noqa: BLE001
+            error_msg = str(err)
+            logger.human(HumanEntry(title=call["name"], body=f"error: {error_msg}", variant="error"))
+            logger.json(
+                {
+                    "type": "tool_error",
+                    "step": step,
+                    "tool": call["name"],
+                    "arguments": call["arguments"],
+                    "error": error_msg,
+                }
+            )
+            return {"id": call["name"], "output": f"error: {error_msg}", "error": True}
+
+    # Run all tool calls concurrently
+    return await asyncio.gather(*[run_one(call) for call in tool_calls])
+
+
+async def call_model_with_policies(
     *,
     client: LLMClient,
     messages: List[Message],
@@ -237,7 +278,7 @@ def call_model_with_policies(
         last_error: Optional[Exception] = None
         for attempt in range(1, attempts + 1):
             try:
-                result = client.generate(messages, tools, stream_handler=stream_handler)
+                result = await client.generate(messages, tools, stream_handler=stream_handler)
                 if attempt > 1:
                     logger.human(HumanEntry(title="model", body=f"retry {attempt} succeeded", variant="model"))
                     logger.json({"type": "model_retry_success", "attempt": attempt})
@@ -271,7 +312,7 @@ def summarize_plan_args(call: ToolCallDescriptor) -> Optional[str]:
     return f"todoList size={len(todo_list)} ids={','.join(str(i) for i in ids)}"
 
 
-def synthesize_meta_tool(client: LLMClient, result: dict, logger: Logger) -> str:
+async def synthesize_meta_tool_async(client: LLMClient, result: dict, logger: Logger) -> str:
     """Synthesize a response from a meta-tool using the LLM."""
     meta_prompt = result.get("meta_prompt", "")
     logger.human(HumanEntry(title="meta-tool", body="synthesizing response...", variant="tool"))
@@ -281,7 +322,7 @@ def synthesize_meta_tool(client: LLMClient, result: dict, logger: Logger) -> str
     ]
     stop_spinner = logger.start_spinner()
     try:
-        synthesis_result = client.generate(synthesis_messages, tools=None)
+        synthesis_result = await client.generate(synthesis_messages, tools=None)
         return synthesis_result.get("content") or "(no synthesis generated)"
     except Exception as err:
         return f"[synthesis error] {err}\n\nRaw context:\n{result.get('meta_context', '')}"

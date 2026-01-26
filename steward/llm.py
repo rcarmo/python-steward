@@ -2,27 +2,32 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from .types import LLMClient, LLMResult, Message, StreamHandler, ToolCallDescriptor, ToolDefinition
+
+# Async stream handler type
+AsyncStreamHandler = Callable[[str, bool], Awaitable[None]]
 
 
 class EchoClient:
     def __init__(self, model: str) -> None:
         self.model = model
 
-    def generate(
+    async def generate(
         self,
         messages: List[Message],
         tools: Optional[List[ToolDefinition]] = None,
-        stream_handler: Optional[StreamHandler] = None,
+        stream_handler: Optional[Union[StreamHandler, AsyncStreamHandler]] = None,
     ) -> LLMResult:  # noqa: ARG002
         last_user = next((msg for msg in reversed(messages) if msg.get("role") == "user"), None)
         content = f"Echo: {last_user.get('content', '')}" if last_user else "Echo"
         if stream_handler:
-            stream_handler(content, True)
+            result = stream_handler(content, True)
+            if hasattr(result, "__await__"):
+                await result
         return {"content": content}
 
 
@@ -32,13 +37,13 @@ class OpenAIClient:
             raise ValueError("STEWARD_OPENAI_API_KEY (or Azure key) is required for this provider")
         self.model = model
         timeout = timeout_ms / 1000.0 if timeout_ms else None
-        self.client = OpenAI(api_key=api_key, base_url=base_url, default_query=default_query, timeout=timeout)
+        self.client = AsyncOpenAI(api_key=api_key, base_url=base_url, default_query=default_query, timeout=timeout)
 
-    def generate(
+    async def generate(
         self,
         messages: List[Message],
         tools: Optional[List[ToolDefinition]] = None,
-        stream_handler: Optional[StreamHandler] = None,
+        stream_handler: Optional[Union[StreamHandler, AsyncStreamHandler]] = None,
     ) -> LLMResult:
         if stream_handler:
             stream = self.client.chat.completions.create(
@@ -48,10 +53,15 @@ class OpenAIClient:
                 tool_choice="auto" if tools else None,
                 stream=True,
             )
+            # Handle both awaitable (real API) and direct async iterator (tests)
+            if hasattr(stream, "__aiter__"):
+                async_stream = stream
+            else:
+                async_stream = await stream
             content_parts: List[str] = []
             # Accumulate tool calls: {index: {id, name, arguments_parts}}
             tool_call_accum: Dict[int, Dict[str, Any]] = {}
-            for event in stream:
+            async for event in async_stream:
                 choices = getattr(event, "choices", None) or []
                 if not choices:
                     continue
@@ -62,7 +72,9 @@ class OpenAIClient:
                 content = getattr(delta, "content", None)
                 if content:
                     content_parts.append(content)
-                    stream_handler(content, False)
+                    result = stream_handler(content, False)
+                    if hasattr(result, "__await__"):
+                        await result
                 # Accumulate tool call chunks
                 delta_tool_calls = getattr(delta, "tool_calls", None)
                 if delta_tool_calls:
@@ -79,7 +91,9 @@ class OpenAIClient:
                             if getattr(func, "arguments", None):
                                 tool_call_accum[idx]["arguments"] += func.arguments
             final_content = "".join(content_parts) if content_parts else None
-            stream_handler("", True)
+            result = stream_handler("", True)
+            if hasattr(result, "__await__"):
+                await result
             # Build final tool calls from accumulated data
             tool_calls: Optional[List[ToolCallDescriptor]] = None
             if tool_call_accum:
@@ -93,7 +107,7 @@ class OpenAIClient:
                             args = {}
                         tool_calls.append({"id": tc["id"], "name": tc["name"], "arguments": args})
             return {"content": final_content, "toolCalls": tool_calls if tool_calls else None}
-        completion = self.client.chat.completions.create(
+        completion = await self.client.chat.completions.create(
             model=self.model,
             messages=_to_openai_messages(messages),
             tools=[_to_openai_tool(tool) for tool in tools] if tools else None,

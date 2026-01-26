@@ -1,7 +1,7 @@
 """Typed structures used across the steward runtime."""
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Literal, Optional, Protocol, TypedDict
+from typing import Any, Awaitable, Callable, Dict, List, Literal, Optional, Protocol, TypedDict, Union
 
 Role = Literal["system", "user", "assistant", "tool"]
 
@@ -42,16 +42,19 @@ class LLMResult(TypedDict, total=False):
     toolCalls: Optional[List[ToolCallDescriptor]]
 
 StreamHandler = Callable[[str, bool], None]
+AsyncStreamHandler = Callable[[str, bool], Awaitable[None]]
 
 
 class LLMClient(Protocol):
-    def generate(
+    async def generate(
         self,
         messages: List[Message],
         tools: Optional[List[ToolDefinition]] = None,
-        stream_handler: Optional[StreamHandler] = None,
+        stream_handler: Optional[Union[StreamHandler, AsyncStreamHandler]] = None,
     ) -> LLMResult:
         ...
 
 
+# Tool handlers can be sync or async
 ToolHandler = Callable[[Dict[str, Any]], ToolResult]
+AsyncToolHandler = Callable[[Dict[str, Any]], Awaitable[ToolResult]]
