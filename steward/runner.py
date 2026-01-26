@@ -154,6 +154,8 @@ def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
         )
 
         tool_calls = response.get("toolCalls") or []
+        # Filter out invalid tool calls (missing name)
+        tool_calls = [call for call in tool_calls if call.get("name")]
         if tool_calls:
             content = (response.get("content") or "").strip()
             thought = format_tool_calls(tool_calls) if content in {"model"} or (content and "args=" in content) else content
