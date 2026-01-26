@@ -130,3 +130,38 @@ def test_openai_client_empty_choices(mock_openai):
     result = client.generate([{"role": "user", "content": "hi"}])
     assert result["content"] is None
     assert result["toolCalls"] is None
+
+
+@patch('steward.llm.OpenAI')
+def test_openai_stream_tool_calls_none_keeps_previous(mock_openai):
+    from steward.llm import OpenAIClient
+
+    class Delta:
+        def __init__(self, content=None, tool_calls=None):
+            self.content = content
+            self.tool_calls = tool_calls
+
+    class Choice:
+        def __init__(self, delta):
+            self.delta = delta
+
+    class Event:
+        def __init__(self, delta):
+            self.choices = [Choice(delta)]
+
+    stream_events = [
+        Event(Delta(tool_calls=[
+            type("Call", (), {"id": "1", "function": type("Fn", (), {"name": "view", "arguments": "{}"})()})()
+        ])),
+        Event(Delta(content="ok", tool_calls=None)),
+    ]
+
+    def stream_create(**_kwargs):
+        for event in stream_events:
+            yield event
+
+    mock_client = mock_openai.return_value
+    mock_client.chat.completions.create.side_effect = stream_create
+    client = OpenAIClient("gpt-4", api_key="test")
+    result = client.generate([{"role": "user", "content": "hi"}], stream_handler=lambda *_args: None)
+    assert result["toolCalls"] is not None

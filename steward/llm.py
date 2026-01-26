@@ -63,7 +63,7 @@ class OpenAIClient:
                     content_parts.append(content)
                     stream_handler(content, False)
                 if getattr(delta, "tool_calls", None):
-                    tool_calls = _to_tool_calls(delta.tool_calls)
+                    tool_calls = _to_tool_calls(delta.tool_calls) or tool_calls
             final_content = "".join(content_parts) if content_parts else None
             stream_handler("", True)
             return {"content": final_content, "toolCalls": tool_calls}
