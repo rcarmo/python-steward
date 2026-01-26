@@ -11,9 +11,13 @@ from __future__ import annotations
 import importlib
 import inspect
 import pkgutil
+from os import getenv
 from typing import Any, Callable, Dict, List, Tuple, Union, get_args, get_origin, get_type_hints
 
 from ..types import ToolDefinition, ToolHandler
+
+# Tools that require STEWARD_ALLOW_EXECUTE=1 to be visible
+EXECUTE_TOOLS = {"bash", "read_bash", "write_bash", "stop_bash", "list_bash"}
 
 
 def _type_to_json_schema(param_type: Any) -> Dict[str, Any]:
@@ -154,11 +158,14 @@ def discover_tools() -> Tuple[List[ToolDefinition], Dict[str, ToolHandler]]:
     Supports two formats:
     1. Legacy: TOOL_DEFINITION dict + tool_handler(args: Dict) function
     2. umcp-style: tool_<name> functions with typed params and docstring
+
+    Tools in EXECUTE_TOOLS are hidden when STEWARD_ALLOW_EXECUTE != "1".
     """
     definitions: List[ToolDefinition] = []
     handlers: Dict[str, ToolHandler] = {}
     package_name = __name__.rsplit(".", 1)[0]
     package = importlib.import_module(package_name)
+    execute_enabled = getenv("STEWARD_ALLOW_EXECUTE") == "1"
 
     for module_info in pkgutil.iter_modules(package.__path__):
         name = module_info.name
@@ -173,6 +180,9 @@ def discover_tools() -> Tuple[List[ToolDefinition], Dict[str, ToolHandler]]:
         if tools:
             # Use umcp-style discovered tools
             for tool_name, handler in tools:
+                # Skip execute tools if execution disabled
+                if tool_name in EXECUTE_TOOLS and not execute_enabled:
+                    continue
                 auto_def = _build_definition_from_handler(tool_name, handler)
                 definitions.append(auto_def)
                 handlers[tool_name] = _create_wrapper(handler)

@@ -27,5 +27,7 @@ def sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
 @pytest.fixture(scope="session")
 def tool_handlers() -> Dict[str, ToolHandler]:
+    # Enable execute tools for test discovery
+    os.environ["STEWARD_ALLOW_EXECUTE"] = "1"
     _, handlers = discover_tools()
     return handlers
