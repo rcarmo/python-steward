@@ -15,7 +15,7 @@ class SkillRegistry:
     """Registry for discovered skills with matching and chaining support."""
 
     def __init__(self) -> None:
-        self._skills: Dict[str, SkillMetadata] = {}
+        self._skills: Dict[str, List[SkillMetadata]] = {}
         self._discovered = False
 
     def discover(self, root: Optional[Path] = None, max_depth: int = 5) -> int:
@@ -37,7 +37,7 @@ class SkillRegistry:
                             content = entry.read_text(encoding="utf8")
                             rel = entry.relative_to(root)
                             skill = parse_skill(content, str(rel))
-                            self._skills[skill.name] = skill
+                            self._skills.setdefault(skill.name, []).append(skill)
                         except (OSError, IOError):
                             pass
                     elif entry.is_dir():
@@ -50,12 +50,20 @@ class SkillRegistry:
         return len(self._skills)
 
     def get(self, name: str) -> Optional[SkillMetadata]:
-        """Get a skill by name."""
-        return self._skills.get(name)
+        """Get a skill by name (returns first match if duplicates exist)."""
+        skills = self._skills.get(name, [])
+        return skills[0] if skills else None
+
+    def get_all_by_name(self, name: str) -> List[SkillMetadata]:
+        """Get all skills with the given name."""
+        return list(self._skills.get(name, []))
 
     def all(self) -> List[SkillMetadata]:
         """Get all discovered skills."""
-        return list(self._skills.values())
+        results: List[SkillMetadata] = []
+        for skills in self._skills.values():
+            results.extend(skills)
+        return results
 
     def match(self, query: str, limit: int = 5) -> List[tuple[SkillMetadata, float]]:
         """Match skills against a query. Returns list of (skill, score) tuples."""
@@ -66,7 +74,7 @@ class SkillRegistry:
         query_words = set(re.findall(r'\w+', query_lower))
         results: List[tuple[SkillMetadata, float]] = []
 
-        for skill in self._skills.values():
+        for skill in self.all():
             score = self._score_match(skill, query_lower, query_words)
             if score > 0:
                 results.append((skill, score))
@@ -107,59 +115,60 @@ class SkillRegistry:
 
     def get_chain(self, skill_name: str) -> List[SkillMetadata]:
         """Get the chain of skills that should follow the given skill."""
-        skill = self._skills.get(skill_name)
+        skill = self.get(skill_name)
         if not skill:
             return []
 
-        chain_skills = []
+        chain_skills: List[SkillMetadata] = []
         for chain_name in skill.chain:
-            chain_skill = self._skills.get(chain_name)
-            if chain_skill:
-                chain_skills.append(chain_skill)
+            chain_skills.extend(self.get_all_by_name(chain_name))
 
         return chain_skills
 
     def get_dependencies(self, skill_name: str) -> List[SkillMetadata]:
         """Get skills that the given skill requires."""
-        skill = self._skills.get(skill_name)
+        skill = self.get(skill_name)
         if not skill:
             return []
 
-        deps = []
+        deps: List[SkillMetadata] = []
         for req_name in skill.requires:
-            req_skill = self._skills.get(req_name)
-            if req_skill:
-                deps.append(req_skill)
+            deps.extend(self.get_all_by_name(req_name))
 
         return deps
 
     def get_dependents(self, skill_name: str) -> List[SkillMetadata]:
         """Get skills that require the given skill."""
-        dependents = []
-        for skill in self._skills.values():
+        dependents: List[SkillMetadata] = []
+        for skill in self.all():
             if skill_name in skill.requires:
                 dependents.append(skill)
         return dependents
 
     def build_execution_order(self, skill_name: str) -> List[SkillMetadata]:
         """Build ordered list of skills to execute, respecting dependencies."""
-        skill = self._skills.get(skill_name)
+        skill = self.get(skill_name)
         if not skill:
             return []
 
         visited: Set[str] = set()
+        visiting: Set[str] = set()
         order: List[SkillMetadata] = []
 
         def visit(s: SkillMetadata) -> None:
             if s.name in visited:
                 return
-            visited.add(s.name)
+            if s.name in visiting:
+                return
+            visiting.add(s.name)
 
             # First, visit dependencies
             for dep in self.get_dependencies(s.name):
                 visit(dep)
 
             order.append(s)
+            visited.add(s.name)
+            visiting.remove(s.name)
 
             # Then, visit chain
             for chain_skill in self.get_chain(s.name):

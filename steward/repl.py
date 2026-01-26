@@ -148,10 +148,13 @@ def run_repl(
 
         if stripped == "stats":
             if conversation_history:
-                from .conversation import get_conversation_stats
-                stats = get_conversation_stats(conversation_history, effective_model)
-                print(f"Conversation: {stats['message_count']} messages, {stats['total_tokens']} tokens")
-                print(f"  User: {stats['user_messages']}, Assistant: {stats['assistant_messages']}, Tool: {stats['tool_messages']}")
+                try:
+                    from .conversation import get_conversation_stats
+                    stats = get_conversation_stats(conversation_history, effective_model)
+                    print(f"Conversation: {stats['message_count']} messages, {stats['total_tokens']} tokens")
+                    print(f"  User: {stats['user_messages']}, Assistant: {stats['assistant_messages']}, Tool: {stats['tool_messages']}")
+                except Exception:
+                    print("Token stats unavailable (missing tiktoken).")
             else:
                 print("No conversation history yet.")
             continue

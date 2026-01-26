@@ -36,6 +36,27 @@ def test_count_tokens_with_tool_calls():
     assert tokens > 20
 
 
+def test_truncate_history_preserves_tool_pairs():
+    messages = [
+        {"role": "system", "content": "System prompt"},
+        {"role": "user", "content": "Message 1"},
+        {
+            "role": "assistant",
+            "content": "Using tool",
+            "tool_calls": [{"id": "call_1", "name": "view", "arguments": {"path": "."}}],
+        },
+        {"role": "tool", "content": "file1.txt", "tool_call_id": "call_1"},
+        {"role": "user", "content": "Message 2"},
+        {"role": "assistant", "content": "Response 2"},
+    ]
+
+    truncated, _ = truncate_history(messages, max_tokens=120)
+    # If assistant tool_call kept, tool response must be kept too
+    roles = [m["role"] for m in truncated]
+    if "assistant" in roles and any(m.get("tool_calls") for m in truncated):
+        assert "tool" in roles
+
+
 def test_truncate_history_keeps_system():
     messages = [
         {"role": "system", "content": "System prompt"},
@@ -53,6 +74,17 @@ def test_truncate_history_keeps_system():
     assert truncated[0]["content"] == "System prompt"
 
 
+def test_truncate_history_overbudget_system_keeps_user():
+    messages = [
+        {"role": "system", "content": "System prompt " * 1000},
+        {"role": "user", "content": "User message"},
+    ]
+    truncated, _ = truncate_history(messages, max_tokens=100)
+    roles = [m["role"] for m in truncated]
+    assert "system" in roles
+    assert "user" in roles
+
+
 def test_truncate_history_keeps_recent():
     messages = [
         {"role": "system", "content": "System"},
@@ -67,9 +99,9 @@ def test_truncate_history_keeps_recent():
 
     # Should keep system and most recent messages
     assert truncated[0]["role"] == "system"
-    # Recent messages should be preserved
+    # Recent user message should be preserved
     if len(truncated) > 1:
-        assert truncated[-1]["content"] == "Recent response"
+        assert "Recent" in truncated[-1]["content"]
 
 
 def test_truncate_history_no_change_under_limit():

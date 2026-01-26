@@ -116,6 +116,58 @@ description: Second skill
     assert chain[0].name == "skill-b"
 
 
+def test_registry_duplicate_names(tmp_path: Path):
+    dir_a = tmp_path / "a"
+    dir_a.mkdir()
+    (dir_a / "SKILL.md").write_text("""---
+name: dup-skill
+description: First
+---
+""", encoding="utf8")
+
+    dir_b = tmp_path / "b"
+    dir_b.mkdir()
+    (dir_b / "SKILL.md").write_text("""---
+name: dup-skill
+description: Second
+---
+""", encoding="utf8")
+
+    registry = SkillRegistry()
+    registry.discover(tmp_path)
+
+    all_dups = registry.get_all_by_name("dup-skill")
+    assert len(all_dups) == 2
+
+
+def test_registry_cycle_handling(tmp_path: Path):
+    dir_a = tmp_path / "a"
+    dir_a.mkdir()
+    (dir_a / "SKILL.md").write_text("""---
+name: skill-a
+description: A
+chain:
+  - skill-b
+---
+""", encoding="utf8")
+
+    dir_b = tmp_path / "b"
+    dir_b.mkdir()
+    (dir_b / "SKILL.md").write_text("""---
+name: skill-b
+description: B
+chain:
+  - skill-a
+---
+""", encoding="utf8")
+
+    registry = SkillRegistry()
+    registry.discover(tmp_path)
+
+    order = registry.build_execution_order("skill-a")
+    names = [s.name for s in order]
+    assert "skill-a" in names and "skill-b" in names
+
 def test_registry_get_dependencies(tmp_path: Path):
     dir_a = tmp_path / "a"
     dir_a.mkdir()

@@ -2,9 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import List, Tuple
-
-import tiktoken
+from typing import Any, List, Tuple
 
 from .types import Message
 
@@ -13,7 +11,26 @@ DEFAULT_MAX_HISTORY_TOKENS = 100_000
 RESPONSE_RESERVE_TOKENS = 4_000  # Reserve for model response
 
 
-def count_message_tokens(message: Message, encoding: tiktoken.Encoding) -> int:
+class _FallbackEncoding:
+    def encode(self, text: str) -> List[int]:
+        if not text:
+            return []
+        return [0] * max(1, len(text) // 4)
+
+
+def _get_encoding(model: str) -> Any:
+    try:
+        import tiktoken
+    except ImportError:
+        return _FallbackEncoding()
+
+    try:
+        return tiktoken.encoding_for_model(model)
+    except KeyError:
+        return tiktoken.get_encoding("cl100k_base")
+
+
+def count_message_tokens(message: Message, encoding: Any) -> int:
     """Count tokens in a single message."""
     tokens = 0
 
@@ -46,11 +63,7 @@ def count_message_tokens(message: Message, encoding: tiktoken.Encoding) -> int:
 
 def count_tokens(messages: List[Message], model: str = "gpt-4") -> int:
     """Count total tokens in a message list."""
-    try:
-        encoding = tiktoken.encoding_for_model(model)
-    except KeyError:
-        # Fallback to cl100k_base for unknown models
-        encoding = tiktoken.get_encoding("cl100k_base")
+    encoding = _get_encoding(model)
 
     total = 0
     for msg in messages:
@@ -80,10 +93,7 @@ def truncate_history(
     if not messages:
         return messages, 0
 
-    try:
-        encoding = tiktoken.encoding_for_model(model)
-    except KeyError:
-        encoding = tiktoken.get_encoding("cl100k_base")
+    encoding = _get_encoding(model)
 
     # Reserve tokens for response
     budget = max_tokens - RESPONSE_RESERVE_TOKENS
@@ -99,22 +109,26 @@ def truncate_history(
     system_tokens = count_message_tokens(system_msg, encoding) if system_msg else 0
 
     if system_tokens >= budget:
-        # System prompt alone exceeds budget - truncate it
-        return [system_msg] if system_msg else [], count_tokens(messages, model)
+        # System prompt alone exceeds budget - keep system + last user if possible
+        last_user = next((msg for msg in reversed(other_messages) if msg.get("role") == "user"), None)
+        result = [system_msg] if system_msg else []
+        if last_user:
+            result.append(last_user)
+        return result, count_tokens(messages, model)
 
     remaining_budget = budget - system_tokens
 
-    # Build from the end (most recent) to fit within budget
+    # Build from the end (most recent) to fit within budget, keeping tool call groups intact
     kept_messages: List[Message] = []
     kept_tokens = 0
 
-    for msg in reversed(other_messages):
-        msg_tokens = count_message_tokens(msg, encoding)
-        if kept_tokens + msg_tokens <= remaining_budget:
-            kept_messages.insert(0, msg)
-            kept_tokens += msg_tokens
+    grouped = _group_messages(other_messages)
+    for group in reversed(grouped):
+        group_tokens = sum(count_message_tokens(msg, encoding) for msg in group)
+        if kept_tokens + group_tokens <= remaining_budget:
+            kept_messages = group + kept_messages
+            kept_tokens += group_tokens
         else:
-            # Can't fit this message, stop
             break
 
     # Calculate how many tokens we dropped
@@ -144,10 +158,7 @@ def should_truncate(
 
 def get_conversation_stats(messages: List[Message], model: str = "gpt-4") -> dict:
     """Get statistics about the conversation."""
-    try:
-        encoding = tiktoken.encoding_for_model(model)
-    except KeyError:
-        encoding = tiktoken.get_encoding("cl100k_base")
+    encoding = _get_encoding(model)
 
     total_tokens = 0
     message_count = len(messages)
@@ -172,3 +183,27 @@ def get_conversation_stats(messages: List[Message], model: str = "gpt-4") -> dic
         "assistant_messages": assistant_messages,
         "tool_messages": tool_messages,
     }
+
+
+def _group_messages(messages: List[Message]) -> List[List[Message]]:
+    """Group messages to preserve tool call/response pairs."""
+    groups: List[List[Message]] = []
+    i = 0
+    while i < len(messages):
+        msg = messages[i]
+        if msg.get("role") == "assistant" and msg.get("tool_calls"):
+            tool_call_ids = {call.get("id") for call in msg.get("tool_calls", [])}
+            group = [msg]
+            i += 1
+            while i < len(messages):
+                next_msg = messages[i]
+                if next_msg.get("role") == "tool" and next_msg.get("tool_call_id") in tool_call_ids:
+                    group.append(next_msg)
+                    i += 1
+                    continue
+                break
+            groups.append(group)
+            continue
+        groups.append([msg])
+        i += 1
+    return groups

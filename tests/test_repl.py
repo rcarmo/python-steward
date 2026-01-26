@@ -113,6 +113,34 @@ def test_run_repl_history_command():
                     run_repl(quiet=True)
 
 
+def test_run_repl_new_command_resets_history():
+    from steward.repl import run_repl
+    from steward.runner import RunnerResult
+
+    inputs = iter(['hello', 'new', 'hello again', 'exit'])
+
+    with patch('steward.repl.setup_readline'):
+        with patch('steward.repl.run_steward_with_history') as mock_run:
+            mock_run.return_value = RunnerResult(response='ok', messages=[{'role': 'user', 'content': 'hello'}])
+            with patch('builtins.input', side_effect=lambda _: next(inputs)):
+                with patch('sys.stdout', new_callable=StringIO):
+                    run_repl(quiet=True)
+
+    assert mock_run.call_count >= 2
+
+
+def test_run_repl_stats_no_history():
+    from steward.repl import run_repl
+
+    inputs = iter(['stats', 'exit'])
+    with patch('steward.repl.setup_readline'):
+        with patch('builtins.input', side_effect=lambda _: next(inputs)):
+            stdout = StringIO()
+            with patch('sys.stdout', stdout):
+                run_repl(quiet=False)
+
+    assert 'No conversation history' in stdout.getvalue()
+
 def test_run_repl_eof_exit():
     from steward.repl import run_repl
 
