@@ -77,7 +77,8 @@ def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
     if not registry.is_discovered:
         skill_count = registry.discover()
         if skill_count > 0:
-            logger.human(HumanEntry(title="skills", body=f"Discovered {skill_count} skill(s)", variant="tool"))
+            skill_names = [s.name for s in registry.all()]
+            logger.human(HumanEntry(title="skills", body=f"Discovered {skill_count} skill(s): {', '.join(skill_names)}", variant="tool"))
 
     # Detect plan mode from prompt prefix
     prompt = options.prompt
