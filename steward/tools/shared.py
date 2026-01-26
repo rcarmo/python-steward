@@ -12,8 +12,11 @@ from ..config import env_int, get_sandbox_root
 
 TodoStatus = str
 
-# Crawler-like User-Agent for web requests (Bingbot-like)
+# Crawler-like User-Agent for web_fetch (Bingbot-like)
 CRAWLER_USER_AGENT = "Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com/bingbot.htm)"
+
+# Standard browser User-Agent for DuckDuckGo searches (WebKit/Safari)
+BROWSER_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15"
 
 
 def print_status(message: str) -> None:

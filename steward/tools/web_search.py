@@ -7,7 +7,7 @@ from urllib.parse import unquote
 import requests
 
 from ..types import ToolResult
-from .shared import CRAWLER_USER_AGENT, clear_status, env_cap, print_status
+from .shared import BROWSER_USER_AGENT, clear_status, env_cap, print_status
 
 
 def tool_web_search(query: str) -> ToolResult:
@@ -26,7 +26,7 @@ def tool_web_search(query: str) -> ToolResult:
         response = requests.get(
             "https://html.duckduckgo.com/html/",
             params={"q": query},
-            headers={"User-Agent": CRAWLER_USER_AGENT},
+            headers={"User-Agent": BROWSER_USER_AGENT},
             timeout=10,
         )
         response.raise_for_status()
