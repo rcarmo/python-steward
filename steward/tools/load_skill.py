@@ -1,7 +1,9 @@
 """skill tool - discover and load skills from SKILL.md files."""
 from __future__ import annotations
 
-from typing import Dict, List
+import re
+from dataclasses import dataclass
+from typing import Dict, List, Optional
 
 from ..types import ToolDefinition, ToolResult
 from .shared import ensure_inside_workspace, normalize_path, rel_path
@@ -19,6 +21,118 @@ TOOL_DEFINITION: ToolDefinition = {
         },
     },
 }
+
+
+@dataclass
+class SkillMetadata:
+    """Parsed skill metadata from SKILL.md."""
+    name: str
+    description: str
+    license: Optional[str] = None
+    body: str = ""
+    path: str = ""
+
+
+def parse_frontmatter(content: str) -> tuple[Dict[str, str], str]:
+    """Parse YAML frontmatter from content. Returns (frontmatter_dict, remaining_content)."""
+    if not content.startswith("---"):
+        return {}, content
+
+    # Find the closing ---
+    end_match = re.search(r"\n---\s*\n", content[3:])
+    if not end_match:
+        return {}, content
+
+    frontmatter_text = content[3:end_match.start() + 3]
+    remaining = content[end_match.end() + 3:]
+
+    # Simple YAML parsing (key: value pairs)
+    frontmatter: Dict[str, str] = {}
+    for line in frontmatter_text.strip().split("\n"):
+        if ":" in line:
+            key, _, value = line.partition(":")
+            frontmatter[key.strip()] = value.strip()
+
+    return frontmatter, remaining
+
+
+def parse_skill(content: str, path: str = "") -> SkillMetadata:
+    """Parse SKILL.md and return structured metadata."""
+    frontmatter, body = parse_frontmatter(content)
+
+    # Get name from frontmatter or first heading
+    name = frontmatter.get("name", "")
+    if not name:
+        for line in body.split("\n"):
+            if line.startswith("# "):
+                name = line[2:].strip()
+                break
+        if not name:
+            name = "Unknown Skill"
+
+    # Get description from frontmatter or first paragraph
+    description = frontmatter.get("description", "")
+    if not description:
+        lines = body.strip().split("\n")
+        for i, line in enumerate(lines):
+            # Skip title line
+            if line.startswith("# "):
+                continue
+            # First non-empty, non-heading line is description
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                description = stripped[:500]
+                break
+
+    return SkillMetadata(
+        name=name,
+        description=description,
+        license=frontmatter.get("license"),
+        body=body.strip(),
+        path=path,
+    )
+
+
+def format_skill_output(skill: SkillMetadata) -> str:
+    """Format skill metadata for output."""
+    lines = [f"# {skill.name}"]
+
+    if skill.description:
+        lines.append(f"\n{skill.description}")
+
+    if skill.license:
+        lines.append(f"\n**License:** {skill.license}")
+
+    # Extract key sections from body
+    sections = extract_sections(skill.body)
+
+    for key in ["overview", "core capabilities", "capabilities", "tools", "commands", "skills", "process"]:
+        if key in sections:
+            content = sections[key][:1000]
+            lines.append(f"\n## {key.title()}\n{content}")
+
+    for key in ["usage", "usage modes", "examples"]:
+        if key in sections:
+            content = sections[key][:500]
+            lines.append(f"\n## {key.title()}\n{content}")
+
+    return "\n".join(lines)
+
+
+def extract_sections(body: str) -> Dict[str, str]:
+    """Extract ## sections from markdown body."""
+    sections: Dict[str, List[str]] = {}
+    current_section = "description"
+    sections[current_section] = []
+
+    for line in body.split("\n"):
+        if line.startswith("## "):
+            current_section = line[3:].strip().lower()
+            sections[current_section] = []
+        elif current_section:
+            sections.setdefault(current_section, []).append(line)
+
+    return {k: "\n".join(v).strip() for k, v in sections.items()}
 
 
 def tool_handler(args: Dict) -> ToolResult:
@@ -40,58 +154,10 @@ def tool_handler(args: Dict) -> ToolResult:
         return {"id": "load_skill", "output": f"File not found: {rel_path(abs_path)}"}
 
     content = abs_path.read_text(encoding="utf8")
-    parsed = parse_skill(content)
+    skill = parse_skill(content, rel_path(abs_path))
+    output = format_skill_output(skill)
 
     return {
         "id": "load_skill",
-        "output": f"Loaded skill from {rel_path(abs_path)}:\n\n{parsed}",
+        "output": f"Loaded skill from {rel_path(abs_path)}:\n\n{output}",
     }
-
-
-def parse_skill(content: str) -> str:
-    """Parse SKILL.md and return structured summary."""
-    lines = content.strip().split("\n")
-
-    # Extract title (first # heading)
-    title = "Unknown Skill"
-    for line in lines:
-        if line.startswith("# "):
-            title = line[2:].strip()
-            break
-
-    # Extract sections
-    sections: Dict[str, List[str]] = {}
-    current_section = "description"
-    sections[current_section] = []
-
-    for line in lines:
-        if line.startswith("## "):
-            current_section = line[3:].strip().lower()
-            sections[current_section] = []
-        elif current_section:
-            sections[current_section].append(line)
-
-    # Build summary
-    output_parts = [f"# {title}"]
-
-    # Get description (content before first ##)
-    if sections.get("description"):
-        desc = "\n".join(sections["description"]).strip()
-        if desc and not desc.startswith("#"):
-            output_parts.append(f"\n{desc[:500]}")
-
-    # Extract capabilities/tools if present
-    for key in ["core capabilities", "capabilities", "tools", "commands", "skills"]:
-        if key in sections:
-            content_text = "\n".join(sections[key]).strip()
-            if content_text:
-                output_parts.append(f"\n## {key.title()}\n{content_text[:1000]}")
-
-    # Extract usage if present
-    for key in ["usage", "usage modes", "examples"]:
-        if key in sections:
-            content_text = "\n".join(sections[key]).strip()
-            if content_text:
-                output_parts.append(f"\n## {key.title()}\n{content_text[:500]}")
-
-    return "\n".join(output_parts)

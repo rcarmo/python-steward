@@ -5,11 +5,12 @@ from pathlib import Path
 from typing import Dict, List
 
 from ..types import ToolDefinition, ToolResult
+from .load_skill import parse_frontmatter
 from .shared import rel_path
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "discover_skills",
-    "description": "Find all SKILL.md files in the workspace. Returns paths to skill definitions that can be loaded with load_skill.",
+    "description": "Find all SKILL.md files in the workspace. Returns paths and metadata for skill definitions that can be loaded with load_skill.",
     "parameters": {
         "type": "object",
         "properties": {
@@ -31,7 +32,7 @@ def tool_handler(args: Dict) -> ToolResult:
     if not root.is_dir():
         return {"id": "discover_skills", "output": f"Not a directory: {raw_path}"}
 
-    skills: List[str] = []
+    skills: List[Dict[str, str]] = []
 
     def search(directory: Path, depth: int = 0) -> None:
         if depth > 5:  # Max depth
@@ -43,7 +44,18 @@ def tool_handler(args: Dict) -> ToolResult:
                 if entry.name.startswith(".") and entry.name != ".":
                     continue
                 if entry.is_file() and entry.name.lower() == "skill.md":
-                    skills.append(rel_path(entry))
+                    skill_info = {"path": rel_path(entry)}
+                    # Extract frontmatter metadata
+                    try:
+                        content = entry.read_text(encoding="utf8")
+                        frontmatter, _ = parse_frontmatter(content)
+                        if frontmatter.get("name"):
+                            skill_info["name"] = frontmatter["name"]
+                        if frontmatter.get("description"):
+                            skill_info["description"] = frontmatter["description"][:200]
+                    except (OSError, IOError):
+                        pass
+                    skills.append(skill_info)
                 elif entry.is_dir():
                     search(entry, depth + 1)
         except PermissionError:
@@ -55,8 +67,13 @@ def tool_handler(args: Dict) -> ToolResult:
         return {"id": "discover_skills", "output": "No SKILL.md files found in workspace"}
 
     output = f"Found {len(skills)} skill(s):\n\n"
-    for skill_path in sorted(skills):
-        output += f"- {skill_path}\n"
-    output += "\nUse load_skill to read skill details."
+    for skill in sorted(skills, key=lambda s: s["path"]):
+        output += f"- **{skill['path']}**"
+        if skill.get("name"):
+            output += f" ({skill['name']})"
+        output += "\n"
+        if skill.get("description"):
+            output += f"  {skill['description']}\n"
+    output += "\nUse load_skill to read full skill details."
 
     return {"id": "discover_skills", "output": output}
