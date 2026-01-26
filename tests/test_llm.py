@@ -66,6 +66,20 @@ def test_echo_client_multiple_messages():
     assert "Final message" in result.get("content", "")
 
 
+def test_echo_client_stream_handler_called():
+    from steward.llm import build_client
+
+    received = []
+
+    def handler(chunk: str, done: bool) -> None:
+        received.append((chunk, done))
+
+    client = build_client("echo", "test")
+    result = client.generate([{"role": "user", "content": "hi"}], stream_handler=handler)
+    assert result.get("content") == "Echo: hi"
+    assert received == [("Echo: hi", True)]
+
+
 def test_to_openai_messages():
     from steward.llm import _to_openai_messages
 

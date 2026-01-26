@@ -51,11 +51,17 @@ class OpenAIClient:
             content_parts: List[str] = []
             tool_calls: Optional[List[ToolCallDescriptor]] = None
             for event in stream:
-                choice = event.choices[0]
-                delta = choice.delta
-                if delta.content:
-                    content_parts.append(delta.content)
-                    stream_handler(delta.content, False)
+                choices = getattr(event, "choices", None) or []
+                if not choices:
+                    continue
+                choice = choices[0]
+                delta = getattr(choice, "delta", None)
+                if not delta:
+                    continue
+                content = getattr(delta, "content", None)
+                if content:
+                    content_parts.append(content)
+                    stream_handler(content, False)
                 if getattr(delta, "tool_calls", None):
                     tool_calls = _to_tool_calls(delta.tool_calls)
             final_content = "".join(content_parts) if content_parts else None
