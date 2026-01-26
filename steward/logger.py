@@ -31,9 +31,7 @@ class Logger:
     ) -> None:
         self.provider = provider
         self.model = model
-        self.log_path = Path(log_json_path) if enable_file_logs and log_json_path else Path(
-            log_json_path or ".steward-log.jsonl"
-        )
+        self.log_path = Path(log_json_path if log_json_path else ".steward-log.jsonl")
         self.enable_human_logs = enable_human_logs
         self.enable_file_logs = enable_file_logs
         self.pretty = pretty
