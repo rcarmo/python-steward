@@ -6,7 +6,7 @@ from os import chdir
 from pathlib import Path
 from typing import Optional, Union
 
-from .config import ensure_dotenv_loaded
+from .config import ensure_dotenv_loaded, set_sandbox_root
 from .runner import RunnerOptions, run_steward
 from .session import generate_session_id
 
@@ -43,6 +43,7 @@ def parse_args() -> Union[RunnerOptions, dict]:
     if parsed.sandbox:
         sandbox_path = Path(parsed.sandbox).resolve()
         sandbox_path.mkdir(parents=True, exist_ok=True)
+        set_sandbox_root(sandbox_path)
         chdir(sandbox_path)
 
     # Load system prompt if specified

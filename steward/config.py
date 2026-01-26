@@ -15,6 +15,25 @@ DEFAULT_REQUEST_TIMEOUT_MS: Optional[int] = None
 # Track if we've loaded .env
 _dotenv_loaded = False
 
+# Sandbox root - when set, all file operations are restricted to this directory
+_sandbox_root: Optional[Path] = None
+
+
+def set_sandbox_root(path: Optional[Path]) -> None:
+    """Set the sandbox root directory. All file operations will be restricted to this path."""
+    global _sandbox_root
+    _sandbox_root = path.resolve() if path else None
+
+
+def get_sandbox_root() -> Optional[Path]:
+    """Get the current sandbox root, or None if not sandboxed."""
+    return _sandbox_root
+
+
+def is_sandboxed() -> bool:
+    """Check if sandbox mode is active."""
+    return _sandbox_root is not None
+
 
 def ensure_dotenv_loaded() -> None:
     """Load .env file from current directory if not already loaded."""

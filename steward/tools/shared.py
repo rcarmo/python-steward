@@ -7,9 +7,15 @@ import subprocess
 from pathlib import Path
 from typing import Callable
 
-from ..config import env_int
+from ..config import env_int, get_sandbox_root
 
 TodoStatus = str
+
+
+def get_workspace_root() -> Path:
+    """Get the effective workspace root (sandbox root if set, else cwd)."""
+    sandbox = get_sandbox_root()
+    return sandbox if sandbox else Path.cwd().resolve()
 
 
 def normalize_path(path: str) -> Path:
@@ -24,7 +30,8 @@ def rel_path(abs_path: Path) -> str:
 
 
 def ensure_inside_workspace(abs_path: Path, must_exist: bool = True) -> None:
-    root = Path.cwd().resolve()
+    """Ensure path is inside workspace. Uses sandbox root if set, else cwd."""
+    root = get_workspace_root()
     try:
         target = abs_path.resolve(strict=must_exist)
     except FileNotFoundError:
@@ -32,7 +39,7 @@ def ensure_inside_workspace(abs_path: Path, must_exist: bool = True) -> None:
             raise
         target = abs_path.parent.resolve()
     if root not in target.parents and target != root:
-        raise ValueError("Path outside workspace")
+        raise ValueError(f"Path outside workspace: {abs_path}")
 
 
 def walk(root: Path, visit: Callable[[Path], None], stop: Callable[[], bool] | None = None) -> None:

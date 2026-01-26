@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "steward"
-version = "0.3.8"
+version = "0.3.9"
 description = "Python CLI steward for LLM tool runs"
 authors = [{ name = "rcarmo" }]
 requires-python = ">=3.10"
