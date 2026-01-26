@@ -7,7 +7,7 @@ from urllib.parse import unquote
 import requests
 
 from ..types import ToolResult
-from .shared import env_cap
+from .shared import CRAWLER_USER_AGENT, clear_status, env_cap, print_status
 
 
 def tool_web_search(query: str) -> ToolResult:
@@ -21,17 +21,21 @@ def tool_web_search(query: str) -> ToolResult:
 
     max_results = env_cap("STEWARD_SEARCH_WEB_MAX_RESULTS", 5)
 
+    print_status(f"searching: {query[:60]}{'...' if len(query) > 60 else ''}")
     try:
         response = requests.get(
             "https://html.duckduckgo.com/html/",
             params={"q": query},
-            headers={"User-Agent": "Steward/1.0"},
+            headers={"User-Agent": CRAWLER_USER_AGENT},
             timeout=10,
         )
         response.raise_for_status()
         html = response.text
     except requests.RequestException as exc:
+        clear_status()
         return {"id": "web_search", "output": f"[error] Search failed: {exc}"}
+    finally:
+        clear_status()
 
     results = _parse_duckduckgo_results(html, max_results)
 

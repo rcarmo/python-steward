@@ -4,12 +4,29 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import Callable
 
 from ..config import env_int, get_sandbox_root
 
 TodoStatus = str
+
+# Crawler-like User-Agent for web requests (Bingbot-like)
+CRAWLER_USER_AGENT = "Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com/bingbot.htm)"
+
+
+def print_status(message: str) -> None:
+    """Print a transient status message to stderr."""
+    # Using ANSI escape codes: save cursor, print, restore cursor
+    sys.stderr.write(f"\r\033[K  ⋯ {message}")
+    sys.stderr.flush()
+
+
+def clear_status() -> None:
+    """Clear the transient status line."""
+    sys.stderr.write("\r\033[K")
+    sys.stderr.flush()
 
 
 def get_workspace_root() -> Path:

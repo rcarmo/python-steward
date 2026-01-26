@@ -9,7 +9,7 @@ from urllib.parse import unquote_to_bytes
 import requests
 
 from ..types import ToolResult
-from .shared import env_cap, infer_content_type
+from .shared import CRAWLER_USER_AGENT, clear_status, env_cap, infer_content_type, print_status
 
 DEFAULT_MAX_LENGTH = 5000
 MAX_ALLOWED_LENGTH = 20000
@@ -86,11 +86,17 @@ def tool_web_fetch(
     if url.startswith("data:"):
         content_type, content = _decode_data_url(url)
     else:
+        # Show URL being fetched (truncate long URLs)
+        display_url = url[:70] + "..." if len(url) > 70 else url
+        print_status(f"fetching: {display_url}")
         try:
-            response = requests.get(url, timeout=10, headers={"User-Agent": "Steward/1.0"})
+            response = requests.get(url, timeout=10, headers={"User-Agent": CRAWLER_USER_AGENT})
             response.raise_for_status()
         except requests.RequestException as exc:
+            clear_status()
             return {"id": "web_fetch", "output": f"[error] {exc}"}
+        finally:
+            clear_status()
         content_type = response.headers.get("content-type", "text/html")
         content = response.text
 
