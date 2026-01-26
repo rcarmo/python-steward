@@ -4,15 +4,17 @@ from __future__ import annotations
 import argparse
 from os import chdir
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from .runner import RunnerOptions, run_steward
 from .session import generate_session_id
 
 
-def parse_args() -> RunnerOptions:
+def parse_args() -> Union[RunnerOptions, dict]:
+    """Parse CLI arguments. Returns RunnerOptions for single run, or dict with 'repl' key for REPL mode."""
     parser = argparse.ArgumentParser(description="steward <prompt> [options]")
     parser.add_argument("prompt", nargs=argparse.REMAINDER, help="Prompt to run")
+    parser.add_argument("--repl", action="store_true", help="Start interactive REPL mode")
     parser.add_argument("--provider", choices=["echo", "openai", "azure"], help="LLM provider (default: echo)")
     parser.add_argument("--model", help="Model name (default: gpt-4o-mini)")
     parser.add_argument("--max-steps", type=int, help="Limit tool/LLM turns (default: 16)")
@@ -33,29 +35,52 @@ def parse_args() -> RunnerOptions:
     )
     parsed = parser.parse_args()
 
-    prompt_text = " ".join(parsed.prompt).strip()
-    if not prompt_text:
-        parser.error("Prompt is required")
-
-    system_prompt: Optional[str] = None
-    if parsed.system:
-        system_path = Path(parsed.system).resolve()
-        system_prompt = system_path.read_text(encoding="utf8")
-
-    custom_instructions: Optional[str] = None
-    if parsed.instructions:
-        instructions_path = Path(parsed.instructions).resolve()
-        custom_instructions = instructions_path.read_text(encoding="utf8")
-
-    session_id: Optional[str] = None
-    if parsed.session:
-        session_id = parsed.session if parsed.session != "auto" else generate_session_id()
-
+    # Handle sandbox before anything else
     sandbox = None
     if parsed.sandbox:
         sandbox = Path(parsed.sandbox).resolve()
         sandbox.mkdir(parents=True, exist_ok=True)
         chdir(sandbox)
+
+    # Load system prompt if specified
+    system_prompt: Optional[str] = None
+    if parsed.system:
+        system_path = Path(parsed.system).resolve()
+        system_prompt = system_path.read_text(encoding="utf8")
+
+    # Load custom instructions if specified
+    custom_instructions: Optional[str] = None
+    if parsed.instructions:
+        instructions_path = Path(parsed.instructions).resolve()
+        custom_instructions = instructions_path.read_text(encoding="utf8")
+
+    # Handle session ID
+    session_id: Optional[str] = None
+    if parsed.session:
+        session_id = parsed.session if parsed.session != "auto" else generate_session_id()
+
+    # REPL mode
+    if parsed.repl:
+        return {
+            "repl": True,
+            "provider": parsed.provider,
+            "model": parsed.model,
+            "max_steps": parsed.max_steps,
+            "timeout_ms": parsed.timeout_ms,
+            "retries": parsed.retries,
+            "system_prompt": system_prompt,
+            "custom_instructions": custom_instructions,
+            "log_json_path": None if parsed.no_log_json else parsed.log_json,
+            "enable_file_logs": not parsed.no_log_json,
+            "quiet": parsed.quiet,
+            "pretty": parsed.pretty,
+            "session_id": session_id,
+        }
+
+    # Single-run mode requires a prompt
+    prompt_text = " ".join(parsed.prompt).strip()
+    if not prompt_text:
+        parser.error("Prompt is required (or use --repl for interactive mode)")
 
     return RunnerOptions(
         prompt=prompt_text,
@@ -75,8 +100,25 @@ def parse_args() -> RunnerOptions:
 
 
 def main() -> None:
-    options = parse_args()
-    run_steward(options)
+    result = parse_args()
+    if isinstance(result, dict) and result.get("repl"):
+        from .repl import run_repl
+        run_repl(
+            provider=result["provider"],
+            model=result["model"],
+            max_steps=result["max_steps"],
+            timeout_ms=result["timeout_ms"],
+            retries=result["retries"],
+            system_prompt=result["system_prompt"],
+            custom_instructions=result["custom_instructions"],
+            log_json_path=result["log_json_path"],
+            enable_file_logs=result["enable_file_logs"],
+            quiet=result["quiet"],
+            pretty=result["pretty"],
+            session_id=result["session_id"],
+        )
+    else:
+        run_steward(result)
 
 
 if __name__ == "__main__":

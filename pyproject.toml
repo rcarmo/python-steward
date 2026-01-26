@@ -27,6 +27,7 @@ dev = [
 
 [project.scripts]
 steward = "steward.cli:main"
+steward-repl = "steward.repl:main"
 steward-mcp = "steward.mcp:main"
 
 [tool.setuptools.packages.find]
