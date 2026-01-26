@@ -132,12 +132,13 @@ def test_run_repl_empty_input_continues():
                 run_repl(quiet=True)
 
 
-@patch('steward.repl.run_steward')
+@patch('steward.repl.run_steward_with_history')
 def test_run_repl_executes_prompt(mock_run_steward):
     from steward.repl import run_repl
+    from steward.runner import RunnerResult
 
     inputs = iter(['hello world', 'exit'])
-    mock_run_steward.return_value = 'response'
+    mock_run_steward.return_value = RunnerResult(response='response', messages=[])
 
     with patch('steward.repl.setup_readline'):
         with patch('builtins.input', side_effect=lambda _: next(inputs)):
@@ -149,7 +150,7 @@ def test_run_repl_executes_prompt(mock_run_steward):
     assert call_args.prompt == 'hello world'
 
 
-@patch('steward.repl.run_steward')
+@patch('steward.repl.run_steward_with_history')
 def test_run_repl_handles_error(mock_run_steward):
     from steward.repl import run_repl
 

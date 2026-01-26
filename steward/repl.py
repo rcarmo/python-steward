@@ -5,11 +5,12 @@ import atexit
 import readline
 from pathlib import Path
 from sys import stderr, stdout
-from typing import Optional
+from typing import List, Optional
 
 from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, detect_provider, ensure_dotenv_loaded
-from .runner import RunnerOptions, run_steward
+from .runner import RunnerOptions, run_steward_with_history
 from .session import generate_session_id
+from .types import Message
 
 # History file location
 HISTORY_DIR = Path.home() / ".steward"
@@ -107,10 +108,13 @@ def run_repl(
     effective_provider = provider or detect_provider()
     effective_model = model or DEFAULT_MODEL
 
+    # Conversation history for multi-turn
+    conversation_history: Optional[List[Message]] = None
+
     if not quiet:
         print(f"Steward REPL (provider={effective_provider}, model={effective_model})")
         print("Type your prompts. Use Ctrl+D to exit, Ctrl+C to cancel input.")
-        print("End a line with \\ for multi-line input.")
+        print("End a line with \\ for multi-line input. Type 'new' to start fresh conversation.")
         print("")
 
     while True:
@@ -137,6 +141,12 @@ def run_repl(
             print("\033[2J\033[H", end="", flush=True)
             continue
 
+        if stripped == "new":
+            conversation_history = None
+            if not quiet:
+                print("Started new conversation.")
+            continue
+
         if stripped == "history":
             history_len = readline.get_current_history_length()
             for i in range(1, min(history_len + 1, 21)):
@@ -160,10 +170,13 @@ def run_repl(
             pretty_logs=pretty,
             session_id=session_id,
             custom_instructions=custom_instructions,
+            conversation_history=conversation_history,
         )
 
         try:
-            run_steward(options)
+            result = run_steward_with_history(options)
+            # Update conversation history for next turn
+            conversation_history = result.messages
         except Exception as err:
             print(f"Error: {err}", file=stderr)
 

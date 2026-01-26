@@ -28,12 +28,27 @@ class RunnerOptions:
     pretty_logs: bool = True
     session_id: Optional[str] = None
     custom_instructions: Optional[str] = None
+    conversation_history: Optional[List[Message]] = None  # For multi-turn conversations
+
+
+@dataclass
+class RunnerResult:
+    """Result from run_steward including conversation history for continuation."""
+    response: Optional[str]
+    messages: List[Message]  # Full conversation history
 
 
 PLAN_MODE_PREFIX = "[[PLAN]]"
 
 
 def run_steward(options: RunnerOptions) -> Optional[str]:
+    """Run steward and return final response text. For conversation history, use run_steward_with_history."""
+    result = run_steward_with_history(options)
+    return result.response
+
+
+def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
+    """Run steward and return result with full conversation history for multi-turn conversations."""
     from .session import get_session_context, init_session
     from .skills import get_registry
 
@@ -69,22 +84,27 @@ def run_steward(options: RunnerOptions) -> Optional[str]:
         init_session(options.session_id)
         session_context = get_session_context(options.session_id)
 
-    # Build skill context for system prompt
-    skill_context = _build_skill_context(registry, prompt)
-
-    messages: List[Message] = []
-    if options.system_prompt:
-        system_text = options.system_prompt
+    # Use existing conversation history or start fresh
+    if options.conversation_history:
+        messages = list(options.conversation_history)  # Copy to avoid mutation
+        messages.append({"role": "user", "content": prompt})
     else:
-        system_text = build_system_prompt(
-            [tool["name"] for tool in tool_definitions],
-            custom_instructions=options.custom_instructions,
-            session_context=session_context,
-            plan_mode=plan_mode,
-            skill_context=skill_context,
-        )
-    messages.append({"role": "system", "content": system_text})
-    messages.append({"role": "user", "content": prompt})
+        # Build skill context for system prompt
+        skill_context = _build_skill_context(registry, prompt)
+
+        messages: List[Message] = []
+        if options.system_prompt:
+            system_text = options.system_prompt
+        else:
+            system_text = build_system_prompt(
+                [tool["name"] for tool in tool_definitions],
+                custom_instructions=options.custom_instructions,
+                session_context=session_context,
+                plan_mode=plan_mode,
+                skill_context=skill_context,
+            )
+        messages.append({"role": "system", "content": system_text})
+        messages.append({"role": "user", "content": prompt})
 
     limit = options.max_steps or DEFAULT_MAX_STEPS
     retry_limit = options.retries or 0
@@ -102,7 +122,7 @@ def run_steward(options: RunnerOptions) -> Optional[str]:
             message = str(err)
             logger.human(HumanEntry(title="model", body=f"step {step} failed: {message}", variant="error"))
             logger.json({"type": "model_error", "step": step, "error": message, "fatal": True})
-            return None
+            return RunnerResult(response=None, messages=messages)
 
         logger.json(
             {
@@ -172,10 +192,11 @@ def run_steward(options: RunnerOptions) -> Optional[str]:
 
         if response.get("content"):
             logger.human(HumanEntry(title="model", body=response.get("content"), variant="model"))
-            return response.get("content")
+            messages.append({"role": "assistant", "content": response.get("content")})
+            return RunnerResult(response=response.get("content"), messages=messages)
 
     print("Reached max steps without final response")
-    return None
+    return RunnerResult(response=None, messages=messages)
 
 
 def call_model_with_policies(
