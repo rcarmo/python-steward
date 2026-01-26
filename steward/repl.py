@@ -113,8 +113,7 @@ def run_repl(
 
     if not quiet:
         print(f"Steward REPL (provider={effective_provider}, model={effective_model})")
-        print("Type your prompts. Use Ctrl+D to exit, Ctrl+C to cancel input.")
-        print("End a line with \\ for multi-line input. Type 'new' to start fresh conversation.")
+        print("Commands: new (fresh conversation), stats (token count), clear, exit")
         print("")
 
     while True:
@@ -145,6 +144,16 @@ def run_repl(
             conversation_history = None
             if not quiet:
                 print("Started new conversation.")
+            continue
+
+        if stripped == "stats":
+            if conversation_history:
+                from .conversation import get_conversation_stats
+                stats = get_conversation_stats(conversation_history, effective_model)
+                print(f"Conversation: {stats['message_count']} messages, {stats['total_tokens']} tokens")
+                print(f"  User: {stats['user_messages']}, Assistant: {stats['assistant_messages']}, Tool: {stats['tool_messages']}")
+            else:
+                print("No conversation history yet.")
             continue
 
         if stripped == "history":

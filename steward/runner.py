@@ -30,6 +30,7 @@ class RunnerOptions:
     session_id: Optional[str] = None
     custom_instructions: Optional[str] = None
     conversation_history: Optional[List[Message]] = None  # For multi-turn conversations
+    max_history_tokens: Optional[int] = None  # Token limit for conversation history
 
 
 @dataclass
@@ -50,6 +51,7 @@ def run_steward(options: RunnerOptions) -> Optional[str]:
 
 def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
     """Run steward and return result with full conversation history for multi-turn conversations."""
+    from .conversation import DEFAULT_MAX_HISTORY_TOKENS, should_truncate, truncate_history
     from .session import get_session_context, init_session
     from .skills import get_registry
 
@@ -66,6 +68,8 @@ def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
         pretty=options.pretty_logs,
         compact=options.compact_logs,
     )
+
+    max_history_tokens = options.max_history_tokens or DEFAULT_MAX_HISTORY_TOKENS
 
     # Auto-discover skills at startup
     registry = get_registry()
@@ -90,6 +94,16 @@ def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
     if options.conversation_history:
         messages = list(options.conversation_history)  # Copy to avoid mutation
         messages.append({"role": "user", "content": prompt})
+
+        # Check if we need to truncate history
+        if should_truncate(messages, max_history_tokens, model):
+            messages, dropped = truncate_history(messages, max_history_tokens, model)
+            if dropped > 0:
+                logger.human(HumanEntry(
+                    title="history",
+                    body=f"Truncated {dropped} tokens from conversation history",
+                    variant="warn"
+                ))
     else:
         # Build skill context for system prompt
         skill_context = _build_skill_context(registry, prompt)

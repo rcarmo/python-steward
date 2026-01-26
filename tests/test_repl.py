@@ -179,7 +179,7 @@ def test_run_repl_banner_shown():
 
     output = stdout.getvalue()
     assert 'Steward REPL' in output
-    assert 'Ctrl+D' in output
+    assert 'Commands:' in output
 
 
 def test_main_function():
