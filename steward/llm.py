@@ -73,6 +73,8 @@ class OpenAIClient:
             tools=[_to_openai_tool(tool) for tool in tools] if tools else None,
             tool_choice="auto" if tools else None,
         )
+        if not getattr(completion, "choices", None):
+            return {"content": None, "toolCalls": None}
         choice = completion.choices[0].message
         tool_calls = _to_tool_calls(choice.tool_calls)
         content = choice.content if isinstance(choice.content, str) else None

@@ -118,3 +118,15 @@ def test_to_tool_calls_empty():
 
     assert _to_tool_calls(None) is None
     assert _to_tool_calls([]) is None
+
+
+@patch('steward.llm.OpenAI')
+def test_openai_client_empty_choices(mock_openai):
+    from steward.llm import OpenAIClient
+
+    mock_client = mock_openai.return_value
+    mock_client.chat.completions.create.return_value = type("Resp", (), {"choices": []})()
+    client = OpenAIClient("gpt-4", api_key="test")
+    result = client.generate([{"role": "user", "content": "hi"}])
+    assert result["content"] is None
+    assert result["toolCalls"] is None
