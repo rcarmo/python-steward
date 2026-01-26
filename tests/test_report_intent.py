@@ -23,14 +23,16 @@ def test_report_intent_updates_intent():
 
 def test_report_intent_requires_intent():
     """Test that report_intent requires intent."""
-    with pytest.raises(ValueError, match="intent"):
-        tool_handler({})
+    result = tool_handler({})
+    assert result.get("error") is True
+    assert "required" in result["output"].lower()
 
 
 def test_report_intent_requires_nonempty():
     """Test that report_intent requires non-empty intent."""
-    with pytest.raises(ValueError, match="intent"):
-        tool_handler({"intent": ""})
+    result = tool_handler({"intent": ""})
+    assert result.get("error") is True
+    assert "required" in result["output"].lower()
 
 
 def test_report_intent_strips_whitespace():

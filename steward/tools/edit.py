@@ -8,24 +8,24 @@ from .shared import ensure_inside_workspace, normalize_path, rel_path
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "edit",
-    "description": "Make string replacements in files. Replaces exactly one occurrence of old_str with new_str. If old_str is not unique, replacement will not be performed.",
+    "description": "Replace text in a file. REQUIRED: path, old_str, new_str (all strings). Replaces exactly one occurrence.",
     "parameters": {
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Full path to file to edit. File must exist.",
+                "description": "REQUIRED. Path to file to edit. Must be a non-empty string.",
             },
             "old_str": {
                 "type": "string",
-                "description": "The string in the file to replace. Must match exactly one occurrence.",
+                "description": "REQUIRED. Text to find and replace. Must match exactly one occurrence in the file.",
             },
             "new_str": {
                 "type": "string",
-                "description": "The new string to replace old_str with.",
+                "description": "REQUIRED. Replacement text. Can be empty string to delete old_str.",
             },
         },
-        "required": ["path"],
+        "required": ["path", "old_str", "new_str"],
     },
 }
 

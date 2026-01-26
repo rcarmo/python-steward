@@ -9,18 +9,18 @@ from .shared import ensure_inside_workspace, env_cap, normalize_path, rel_path
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "view",
-    "description": "View file contents (with line numbers) or directory listings. For files, displays content with line numbers prefixed. For directories, lists entries up to 2 levels deep.",
+    "description": "View file contents or directory listing. REQUIRED: path (string).",
     "parameters": {
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "Path to file or directory to view.",
+                "description": "REQUIRED. Path to file or directory to view. Must be a non-empty string.",
             },
             "view_range": {
                 "type": "array",
                 "items": {"type": "integer"},
-                "description": "Optional [start_line, end_line] range for files. Use [start, -1] to view from start to end of file.",
+                "description": "Optional [start_line, end_line] range for files. Use [start, -1] to view from start to end.",
             },
         },
         "required": ["path"],

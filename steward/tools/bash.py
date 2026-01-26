@@ -15,13 +15,13 @@ from .shared import audit_execute, ensure_inside_workspace, env_cap, normalize_p
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "bash",
-    "description": "Run a Bash command. Supports sync mode (wait for completion) and async mode (background execution).",
+    "description": "Run a shell command. REQUIRED: command (string). Supports sync/async modes.",
     "parameters": {
         "type": "object",
         "properties": {
             "command": {
                 "type": "string",
-                "description": "The Bash command to run.",
+                "description": "REQUIRED. The Bash command to run. Must be a non-empty string.",
             },
             "description": {
                 "type": "string",

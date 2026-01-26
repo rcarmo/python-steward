@@ -7,13 +7,13 @@ from ..types import ToolDefinition, ToolResult
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "report_intent",
-    "description": "Report the agent's current intent or action. Used to communicate what the agent is doing.",
+    "description": "Report current task intent. REQUIRED: intent (string, 4 words max, gerund form like 'Exploring codebase').",
     "parameters": {
         "type": "object",
         "properties": {
             "intent": {
                 "type": "string",
-                "description": "A short description of current intent (4 words max, gerund form). E.g., 'Exploring codebase', 'Creating parser tests'.",
+                "description": "REQUIRED. Short description of current intent (4 words max, gerund form). Example: 'Exploring codebase', 'Creating parser tests'.",
             },
         },
         "required": ["intent"],
@@ -34,7 +34,7 @@ def tool_handler(args: Dict) -> ToolResult:
 
     intent = args.get("intent")
     if not isinstance(intent, str) or not intent.strip():
-        raise ValueError("'intent' is required and must be non-empty")
+        return {"id": "report_intent", "output": "Error: 'intent' is required and must be a non-empty string", "error": True}
 
     _current_intent = intent.strip()
 

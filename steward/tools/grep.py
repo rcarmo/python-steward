@@ -19,13 +19,13 @@ from .shared import (
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "grep",
-    "description": "Fast code search using ripgrep-style matching. Search for patterns in file contents.",
+    "description": "Search file contents for a regex pattern. REQUIRED: pattern (string). Returns matching files or lines.",
     "parameters": {
         "type": "object",
         "properties": {
             "pattern": {
                 "type": "string",
-                "description": "The regular expression pattern to search for in file contents.",
+                "description": "REQUIRED. The regex pattern to search for. Must be a non-empty string.",
             },
             "path": {
                 "type": "string",
@@ -104,8 +104,8 @@ def matches_glob(filename: str, glob_pattern: str) -> bool:
 
 def tool_handler(args: Dict) -> ToolResult:
     pattern = args.get("pattern")
-    if not isinstance(pattern, str):
-        raise ValueError("'pattern' must be a string")
+    if not isinstance(pattern, str) or not pattern:
+        return {"id": "grep", "output": "Error: 'pattern' is required and must be a non-empty string", "error": True}
 
     root = normalize_path(args.get("path") if isinstance(args.get("path"), str) else ".")
     ensure_inside_workspace(root)
