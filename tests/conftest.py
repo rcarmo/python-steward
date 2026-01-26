@@ -29,5 +29,12 @@ def sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 def tool_handlers() -> Dict[str, ToolHandler]:
     # Enable execute tools for test discovery
     os.environ["STEWARD_ALLOW_EXECUTE"] = "1"
-    _, handlers = discover_tools()
+    # Mock MCP config to enable MCP tools for testing
+    import steward.tools.registry as reg
+    original_has_mcp = reg._has_mcp_servers
+    reg._has_mcp_servers = lambda: True
+    try:
+        _, handlers = discover_tools()
+    finally:
+        reg._has_mcp_servers = original_has_mcp
     return handlers

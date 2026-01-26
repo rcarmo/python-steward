@@ -19,6 +19,9 @@ from ..types import ToolDefinition, ToolHandler
 # Tools that require STEWARD_ALLOW_EXECUTE=1 to be visible
 EXECUTE_TOOLS = {"bash", "read_bash", "write_bash", "stop_bash", "list_bash"}
 
+# Tools that require MCP servers to be configured
+MCP_TOOLS = {"mcp_list_servers", "mcp_list_tools", "mcp_call"}
+
 
 def _type_to_json_schema(param_type: Any) -> Dict[str, Any]:
     """Convert Python type annotation to JSON schema property."""
@@ -152,6 +155,12 @@ def _discover_from_module(module: Any) -> Tuple[List[Tuple[str, Callable]], List
     return tools, prompts
 
 
+def _has_mcp_servers() -> bool:
+    """Check if any MCP servers are configured."""
+    from ..mcp_client import load_config
+    return bool(load_config())
+
+
 def discover_tools() -> Tuple[List[ToolDefinition], Dict[str, ToolHandler]]:
     """Discover tools from steward.tools.* modules.
 
@@ -160,12 +169,14 @@ def discover_tools() -> Tuple[List[ToolDefinition], Dict[str, ToolHandler]]:
     2. umcp-style: tool_<name> functions with typed params and docstring
 
     Tools in EXECUTE_TOOLS are hidden when STEWARD_ALLOW_EXECUTE != "1".
+    Tools in MCP_TOOLS are hidden when no MCP servers are configured.
     """
     definitions: List[ToolDefinition] = []
     handlers: Dict[str, ToolHandler] = {}
     package_name = __name__.rsplit(".", 1)[0]
     package = importlib.import_module(package_name)
     execute_enabled = getenv("STEWARD_ALLOW_EXECUTE") == "1"
+    mcp_enabled = _has_mcp_servers()
 
     for module_info in pkgutil.iter_modules(package.__path__):
         name = module_info.name
@@ -182,6 +193,9 @@ def discover_tools() -> Tuple[List[ToolDefinition], Dict[str, ToolHandler]]:
             for tool_name, handler in tools:
                 # Skip execute tools if execution disabled
                 if tool_name in EXECUTE_TOOLS and not execute_enabled:
+                    continue
+                # Skip MCP tools if no servers configured
+                if tool_name in MCP_TOOLS and not mcp_enabled:
                     continue
                 auto_def = _build_definition_from_handler(tool_name, handler)
                 definitions.append(auto_def)
