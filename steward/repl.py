@@ -168,6 +168,7 @@ def run_repl(
             enable_human_logs=not quiet,
             enable_file_logs=enable_file_logs,
             pretty_logs=pretty,
+            compact_logs=True,  # Use abbreviated logging in REPL
             session_id=session_id,
             custom_instructions=custom_instructions,
             conversation_history=conversation_history,

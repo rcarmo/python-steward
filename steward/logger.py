@@ -27,6 +27,7 @@ class Logger:
         enable_human_logs: bool = True,
         enable_file_logs: bool = True,
         pretty: bool = True,
+        compact: bool = False,
     ) -> None:
         self.provider = provider
         self.model = model
@@ -36,6 +37,7 @@ class Logger:
         self.enable_human_logs = enable_human_logs
         self.enable_file_logs = enable_file_logs
         self.pretty = pretty
+        self.compact = compact
         self.console = Console(theme=_theme(), highlight=False) if pretty else None
 
     def start_spinner(self):
@@ -53,26 +55,92 @@ class Logger:
         title = entry.title or "info"
         body = entry.body or ""
         variant = entry.variant or "info"
-        if self.console:
-            style = {
-                "error": "red",
-                "warn": "yellow",
-                "todo": "magenta",
-                "model": "cyan",
-                "tool": "green",
-            }.get(variant, "cyan")
-            prefix = {
-                "error": "[error]",
-                "warn": "[warn]",
-                "todo": "[todo]",
-                "model": "[model]",
-                "tool": "[tool]",
-            }.get(variant, "[info]")
-            self.console.print(f"{prefix} {title}")
+
+        if self.compact:
+            self._human_compact(title, body, variant)
+        elif self.console:
+            self._human_pretty(title, body, variant)
+        else:
+            print(f"{title}: {body}")
+
+    def _human_compact(self, title: str, body: str, variant: str) -> None:
+        """Compact single-line logging for REPL mode."""
+        icon = {
+            "error": "✗",
+            "warn": "⚠",
+            "todo": "☐",
+            "model": "→",
+            "tool": "•",
+        }.get(variant, "·")
+
+        style = {
+            "error": "red",
+            "warn": "yellow",
+            "todo": "magenta",
+            "model": "cyan",
+            "tool": "green dim",
+        }.get(variant, "dim")
+
+        # For model responses, show abbreviated content
+        if variant == "model":
             if body:
-                self.console.print(f"{body}", style=style)
+                # Truncate long model output
+                short = body[:200] + "..." if len(body) > 200 else body
+                short = short.replace("\n", " ").strip()
+                if self.console:
+                    self.console.print(f"  {icon} {short}", style=style)
+                else:
+                    print(f"  {icon} {short}")
             return
-        print(f"{title}: {body}")
+
+        # For tools, show just the action
+        if variant == "tool":
+            # Only show tool name and brief summary
+            short = body[:100].replace("\n", " ").strip() if body else ""
+            if "=" in short:
+                short = short.split("=")[0] + "=..."
+            if self.console:
+                self.console.print(f"  {icon} {title} {short}", style=style)
+            else:
+                print(f"  {icon} {title} {short}")
+            return
+
+        # For errors/warnings, show full message
+        if variant in ("error", "warn"):
+            short = body[:150].replace("\n", " ") if body else ""
+            if self.console:
+                self.console.print(f"  {icon} {title}: {short}", style=style)
+            else:
+                print(f"  {icon} {title}: {short}")
+            return
+
+        # Default: brief format
+        if body:
+            short = body[:80].replace("\n", " ")
+            if self.console:
+                self.console.print(f"  {icon} {title}: {short}", style=style)
+            else:
+                print(f"  {icon} {title}: {short}")
+
+    def _human_pretty(self, title: str, body: str, variant: str) -> None:
+        """Full pretty logging with boxes/colors."""
+        style = {
+            "error": "red",
+            "warn": "yellow",
+            "todo": "magenta",
+            "model": "cyan",
+            "tool": "green",
+        }.get(variant, "cyan")
+        prefix = {
+            "error": "[error]",
+            "warn": "[warn]",
+            "todo": "[todo]",
+            "model": "[model]",
+            "tool": "[tool]",
+        }.get(variant, "[info]")
+        self.console.print(f"{prefix} {title}")
+        if body:
+            self.console.print(f"{body}", style=style)
 
     def json(self, entry: Dict[str, Any]) -> None:
         if not self.enable_file_logs:

@@ -26,6 +26,7 @@ class RunnerOptions:
     enable_human_logs: bool = True
     enable_file_logs: bool = True
     pretty_logs: bool = True
+    compact_logs: bool = False  # Abbreviated single-line logging for REPL
     session_id: Optional[str] = None
     custom_instructions: Optional[str] = None
     conversation_history: Optional[List[Message]] = None  # For multi-turn conversations
@@ -63,6 +64,7 @@ def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
         enable_human_logs=options.enable_human_logs,
         enable_file_logs=options.enable_file_logs,
         pretty=options.pretty_logs,
+        compact=options.compact_logs,
     )
 
     # Auto-discover skills at startup
