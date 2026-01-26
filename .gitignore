@@ -12,4 +12,4 @@ __pycache__/
 *.egg-info/
 /.venv/
 /.env/
-outside.txt
+outside.txt.coverage

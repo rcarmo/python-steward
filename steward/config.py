@@ -4,6 +4,11 @@ from __future__ import annotations
 from os import getenv
 from typing import Optional
 
+from dotenv import load_dotenv
+
+# Load .env file from current directory (if present)
+load_dotenv()
+
 DEFAULT_MODEL = "gpt-4o-mini"
 DEFAULT_PROVIDER = "echo"
 DEFAULT_MAX_STEPS = 32
