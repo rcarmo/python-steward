@@ -147,9 +147,14 @@ def _to_tool_calls(calls: Any) -> Optional[List[ToolCallDescriptor]]:
         return None
     results: List[ToolCallDescriptor] = []
     for call in calls:
+        # Skip invalid tool calls (missing id or function name)
+        if not getattr(call, "id", None) or not getattr(call, "function", None):
+            continue
+        if not getattr(call.function, "name", None):
+            continue
         try:
             args = json.loads(call.function.arguments)
         except (TypeError, ValueError):
             args = {}
         results.append({"id": call.id, "name": call.function.name, "arguments": args})
-    return results
+    return results if results else None
