@@ -7,7 +7,7 @@ from pathlib import Path
 from sys import stderr, stdout
 from typing import Optional
 
-from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, DEFAULT_PROVIDER
+from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, detect_provider
 from .runner import RunnerOptions, run_steward
 from .session import generate_session_id
 
@@ -102,7 +102,7 @@ def run_repl(
     if session_id is None:
         session_id = generate_session_id()
 
-    effective_provider = provider or DEFAULT_PROVIDER
+    effective_provider = provider or detect_provider()
     effective_model = model or DEFAULT_MODEL
 
     if not quiet:

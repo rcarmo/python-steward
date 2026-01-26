@@ -15,6 +15,24 @@ DEFAULT_MAX_STEPS = 32
 DEFAULT_REQUEST_TIMEOUT_MS: Optional[int] = None
 
 
+def detect_provider() -> str:
+    """Autodetect provider based on available environment variables."""
+    # Check Azure first (more specific)
+    azure_endpoint = getenv("STEWARD_AZURE_OPENAI_ENDPOINT") or getenv("AZURE_OPENAI_ENDPOINT")
+    azure_key = getenv("STEWARD_AZURE_OPENAI_KEY") or getenv("AZURE_OPENAI_KEY")
+    azure_deployment = getenv("STEWARD_AZURE_OPENAI_DEPLOYMENT") or getenv("AZURE_OPENAI_DEPLOYMENT")
+    if azure_endpoint and azure_key and azure_deployment:
+        return "azure"
+
+    # Check OpenAI
+    openai_key = getenv("STEWARD_OPENAI_API_KEY") or getenv("OPENAI_API_KEY")
+    if openai_key:
+        return "openai"
+
+    # Fallback to echo
+    return "echo"
+
+
 def env_int(name: str, fallback: int) -> int:
     raw = getenv(name)
     if raw is None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional
 
-from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, DEFAULT_PROVIDER
+from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, detect_provider
 from .llm import build_client
 from .logger import HumanEntry, Logger
 from .system_prompt import build_system_prompt
@@ -37,10 +37,12 @@ def run_steward(options: RunnerOptions) -> Optional[str]:
     from .session import get_session_context, init_session
 
     tool_definitions, tool_handlers = discover_tools()
-    client = build_client(options.provider or DEFAULT_PROVIDER, options.model or DEFAULT_MODEL, timeout_ms=options.request_timeout_ms)
+    provider = options.provider or detect_provider()
+    model = options.model or DEFAULT_MODEL
+    client = build_client(provider, model, timeout_ms=options.request_timeout_ms)
     logger = Logger(
-        provider=options.provider or DEFAULT_PROVIDER,
-        model=options.model or DEFAULT_MODEL,
+        provider=provider,
+        model=model,
         log_json_path=options.log_json_path,
         enable_human_logs=options.enable_human_logs,
         enable_file_logs=options.enable_file_logs,
@@ -94,8 +96,8 @@ def run_steward(options: RunnerOptions) -> Optional[str]:
             {
                 "type": "model_response",
                 "step": step,
-                "provider": options.provider or DEFAULT_PROVIDER,
-                "model": options.model or DEFAULT_MODEL,
+                "provider": provider,
+                "model": model,
                 "content": response.get("content"),
                 "toolCalls": response.get("toolCalls"),
             }
