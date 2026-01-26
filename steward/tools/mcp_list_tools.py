@@ -5,7 +5,7 @@ from ..mcp_client import list_tools, load_config
 from ..types import ToolResult
 
 
-def tool_handler(server: str) -> ToolResult:
+def tool_mcp_list_tools(server: str) -> ToolResult:
     """List available tools from an MCP server. Connects to the server if not already connected.
 
     Args:

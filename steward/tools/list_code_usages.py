@@ -31,7 +31,7 @@ def iter_files(target: Path) -> Iterable[Path]:
                 yield entry
 
 
-def tool_handler(
+def tool_list_code_usages(
     symbolName: str,
     filePaths: Optional[List[str]] = None,
     maxResults: int = 200,

@@ -11,7 +11,7 @@ def plan_file() -> Path:
     return Path.cwd() / ".steward-todo.md"
 
 
-def tool_handler(todos: str) -> ToolResult:
+def tool_update_todo(todos: str) -> ToolResult:
     """Manage tasks with a markdown checklist. Use frequently to track progress.
 
     Args:

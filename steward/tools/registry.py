@@ -1,7 +1,10 @@
-"""Discover tool definitions and handlers from steward.tools.* modules.
+"""Discover tool and prompt definitions from steward.tools.* modules.
 
-Supports umcp-style tool discovery where tool_handler functions use
-typed parameters and docstrings instead of TOOL_DEFINITION dicts.
+Supports umcp-style discovery where:
+- Functions named tool_<name> are discovered as tools
+- Functions named prompt_<name> are discovered as prompts
+- Type hints on parameters generate JSON schema
+- Docstrings provide descriptions
 """
 from __future__ import annotations
 
@@ -121,12 +124,36 @@ def _create_wrapper(handler: Callable) -> ToolHandler:
     return wrapper
 
 
+def _discover_from_module(module: Any) -> Tuple[List[Tuple[str, Callable]], List[Tuple[str, Callable]]]:
+    """Discover tool_ and prompt_ prefixed functions from a module.
+
+    Returns (tools, prompts) where each is a list of (name, handler) tuples.
+    """
+    tools: List[Tuple[str, Callable]] = []
+    prompts: List[Tuple[str, Callable]] = []
+
+    for attr_name in dir(module):
+        if attr_name.startswith("tool_"):
+            handler = getattr(module, attr_name)
+            if callable(handler):
+                # Extract tool name from function name (tool_view -> view)
+                tool_name = attr_name[5:]  # Remove "tool_" prefix
+                tools.append((tool_name, handler))
+        elif attr_name.startswith("prompt_"):
+            handler = getattr(module, attr_name)
+            if callable(handler):
+                prompt_name = attr_name[7:]  # Remove "prompt_" prefix
+                prompts.append((prompt_name, handler))
+
+    return tools, prompts
+
+
 def discover_tools() -> Tuple[List[ToolDefinition], Dict[str, ToolHandler]]:
     """Discover tools from steward.tools.* modules.
 
     Supports two formats:
     1. Legacy: TOOL_DEFINITION dict + tool_handler(args: Dict) function
-    2. umcp-style: tool_handler with typed params and docstring (auto-generates definition)
+    2. umcp-style: tool_<name> functions with typed params and docstring
     """
     definitions: List[ToolDefinition] = []
     handlers: Dict[str, ToolHandler] = {}
@@ -139,24 +166,56 @@ def discover_tools() -> Tuple[List[ToolDefinition], Dict[str, ToolHandler]]:
             continue
 
         module = importlib.import_module(f"{package_name}.{name}")
-        handler = getattr(module, "tool_handler", None)
 
-        if not handler:
-            continue
+        # First try umcp-style discovery (tool_ prefix)
+        tools, _ = _discover_from_module(module)
 
-        # Check for explicit TOOL_DEFINITION first (legacy format)
-        definition = getattr(module, "TOOL_DEFINITION", None)
-
-        if definition:
-            # Use explicit definition
-            definitions.append(definition)
-            handlers[definition["name"]] = handler
+        if tools:
+            # Use umcp-style discovered tools
+            for tool_name, handler in tools:
+                auto_def = _build_definition_from_handler(tool_name, handler)
+                definitions.append(auto_def)
+                handlers[tool_name] = _create_wrapper(handler)
         else:
-            # Auto-generate from handler signature and docstring
-            # Use module name as tool name (underscores preserved for compatibility)
-            tool_name = name
-            auto_def = _build_definition_from_handler(tool_name, handler)
-            definitions.append(auto_def)
-            handlers[tool_name] = _create_wrapper(handler)
+            # Fall back to legacy tool_handler discovery
+            handler = getattr(module, "tool_handler", None)
+            if not handler:
+                continue
+
+            # Check for explicit TOOL_DEFINITION (legacy format)
+            definition = getattr(module, "TOOL_DEFINITION", None)
+
+            if definition:
+                definitions.append(definition)
+                handlers[definition["name"]] = handler
+            else:
+                # Auto-generate from handler signature
+                tool_name = name
+                auto_def = _build_definition_from_handler(tool_name, handler)
+                definitions.append(auto_def)
+                handlers[tool_name] = _create_wrapper(handler)
 
     return definitions, handlers
+
+
+def discover_prompts() -> Dict[str, Callable]:
+    """Discover prompts from steward.tools.* modules.
+
+    Looks for prompt_<name> functions and returns a dict of name -> handler.
+    """
+    prompts: Dict[str, Callable] = {}
+    package_name = __name__.rsplit(".", 1)[0]
+    package = importlib.import_module(package_name)
+
+    for module_info in pkgutil.iter_modules(package.__path__):
+        name = module_info.name
+        if name.startswith("_") or name in {"registry", "shared"}:
+            continue
+
+        module = importlib.import_module(f"{package_name}.{name}")
+        _, module_prompts = _discover_from_module(module)
+
+        for prompt_name, handler in module_prompts:
+            prompts[prompt_name] = handler
+
+    return prompts

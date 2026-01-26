@@ -5,7 +5,7 @@ from ..types import ToolResult
 from .bash import stop_session
 
 
-def tool_handler(sessionId: str) -> ToolResult:
+def tool_stop_bash(sessionId: str) -> ToolResult:
     """Stop a running async bash session by terminating the process.
 
     Args:

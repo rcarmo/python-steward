@@ -27,7 +27,7 @@ def _load_executable() -> str:
     return sys.executable
 
 
-def tool_handler(packageList: List[str], resourcePath: Optional[str] = None) -> ToolResult:
+def tool_install_python_packages(packageList: List[str], resourcePath: Optional[str] = None) -> ToolResult:
     """Install Python packages via pip.
 
     Args:

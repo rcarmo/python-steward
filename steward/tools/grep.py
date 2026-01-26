@@ -46,7 +46,7 @@ def matches_glob(filename: str, glob_pattern: str) -> bool:
     return fnmatch.fnmatch(filename, glob_pattern)
 
 
-def tool_handler(
+def tool_grep(
     pattern: str,
     path: Optional[str] = None,
     glob: Optional[str] = None,

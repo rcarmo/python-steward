@@ -11,7 +11,7 @@ from .shared import rel_path
 IGNORED_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", ".tox", "dist", "build"}
 
 
-def tool_handler(path: Optional[str] = None) -> ToolResult:
+def tool_discover_skills(path: Optional[str] = None) -> ToolResult:
     """Find all SKILL.md files in the workspace.
 
     Args:

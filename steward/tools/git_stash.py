@@ -8,7 +8,7 @@ from ..types import ToolResult
 from .shared import ensure_inside_workspace, normalize_path, run_captured, truncate_output
 
 
-def tool_handler(
+def tool_git_stash(
     path: Optional[str] = None,
     action: str = "save",
     message: Optional[str] = None,

@@ -30,7 +30,7 @@ def parse_status_lines(lines: List[str]) -> Dict[str, List[str]]:
     return buckets
 
 
-def tool_handler(
+def tool_get_changed_files(
     repositoryPath: Optional[str] = None,
     sourceControlState: Optional[List[str]] = None,
 ) -> ToolResult:

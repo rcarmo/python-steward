@@ -11,7 +11,7 @@ MAX_RESULTS = 500
 IGNORED_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv"}
 
 
-def tool_handler(pattern: str, path: Optional[str] = None) -> ToolResult:
+def tool_glob(pattern: str, path: Optional[str] = None) -> ToolResult:
     """Find files matching a glob pattern.
 
     Args:

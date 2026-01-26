@@ -18,7 +18,7 @@ _sessions: Dict[str, dict] = {}
 _sessions_lock = threading.Lock()
 
 
-def tool_handler(
+def tool_bash(
     command: str,
     description: str = "",
     mode: str = "sync",

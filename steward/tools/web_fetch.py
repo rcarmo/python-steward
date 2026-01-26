@@ -63,7 +63,7 @@ def _decode_data_url(url: str) -> tuple[str, str]:
     return content_type, data.decode("utf8", errors="ignore")
 
 
-def tool_handler(
+def tool_web_fetch(
     url: str,
     raw: bool = False,
     max_length: Optional[int] = None,

@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from steward.tools.ask_user import set_input_callback, tool_handler
+from steward.tools.ask_user import set_input_callback, tool_ask_user as tool_handler
 
 
 @pytest.fixture

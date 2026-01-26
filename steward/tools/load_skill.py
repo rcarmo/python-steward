@@ -183,7 +183,7 @@ def extract_sections(body: str) -> Dict[str, str]:
     return {k: "\n".join(v).strip() for k, v in sections.items()}
 
 
-def tool_handler(path: Optional[str] = None) -> ToolResult:
+def tool_load_skill(path: Optional[str] = None) -> ToolResult:
     """Load a skill definition from a SKILL.md file.
 
     Args:

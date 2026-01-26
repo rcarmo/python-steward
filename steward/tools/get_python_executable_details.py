@@ -27,7 +27,7 @@ def _load_executable() -> str:
     return sys.executable
 
 
-def tool_handler(resourcePath: Optional[str] = None) -> ToolResult:
+def tool_get_python_executable_details(resourcePath: Optional[str] = None) -> ToolResult:
     """Return the configured Python executable path and version info.
 
     Args:

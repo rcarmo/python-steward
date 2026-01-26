@@ -5,7 +5,7 @@ from ..skills import get_registry
 from ..types import ToolResult
 
 
-def tool_handler(query: str, limit: int = 5) -> ToolResult:
+def tool_suggest_skills(query: str, limit: int = 5) -> ToolResult:
     """Find skills that match a query or task description.
 
     Args:

@@ -10,7 +10,7 @@ from ..types import ToolResult
 from .shared import env_cap
 
 
-def tool_handler(query: str) -> ToolResult:
+def tool_web_search(query: str) -> ToolResult:
     """AI-powered web search returning synthesized answers with citations.
 
     Args:

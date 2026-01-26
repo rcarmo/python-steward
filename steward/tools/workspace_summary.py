@@ -7,7 +7,7 @@ from pathlib import Path
 from ..types import ToolResult
 
 
-def tool_handler() -> ToolResult:
+def tool_workspace_summary() -> ToolResult:
     """Basic workspace summary showing package info and top-level dirs/files."""
     root = Path.cwd()
     entries = list(root.iterdir())

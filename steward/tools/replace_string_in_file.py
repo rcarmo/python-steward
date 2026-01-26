@@ -5,7 +5,7 @@ from ..types import ToolResult
 from .shared import ensure_inside_workspace, normalize_path, rel_path
 
 
-def tool_handler(path: str, oldString: str, newString: str) -> ToolResult:
+def tool_replace_string_in_file(path: str, oldString: str, newString: str) -> ToolResult:
     """Replace exact string in a file.
 
     Args:

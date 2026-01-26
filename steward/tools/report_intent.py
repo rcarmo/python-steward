@@ -12,7 +12,7 @@ def get_current_intent() -> str:
     return _current_intent
 
 
-def tool_handler(intent: str) -> ToolResult:
+def tool_report_intent(intent: str) -> ToolResult:
     """Report current task intent.
 
     Args:

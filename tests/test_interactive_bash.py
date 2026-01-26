@@ -4,12 +4,12 @@ import os
 import pytest
 
 from steward.tools.bash import _sessions, _sessions_lock
-from steward.tools.bash import tool_handler as bash_handler
-from steward.tools.list_bash import tool_handler as list_handler
-from steward.tools.read_bash import tool_handler as read_handler
-from steward.tools.stop_bash import tool_handler as stop_handler
+from steward.tools.bash import tool_bash as bash_handler
+from steward.tools.list_bash import tool_list_bash as list_handler
+from steward.tools.read_bash import tool_read_bash as read_handler
+from steward.tools.stop_bash import tool_stop_bash as stop_handler
 from steward.tools.write_bash import _expand_special_keys
-from steward.tools.write_bash import tool_handler as write_handler
+from steward.tools.write_bash import tool_write_bash as write_handler
 
 
 @pytest.fixture(autouse=True)

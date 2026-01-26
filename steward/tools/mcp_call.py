@@ -7,7 +7,7 @@ from ..mcp_client import call_tool, load_config
 from ..types import ToolResult
 
 
-def tool_handler(server: str, tool: str, arguments: Optional[Dict[str, Any]] = None) -> ToolResult:
+def tool_mcp_call(server: str, tool: str, arguments: Optional[Dict[str, Any]] = None) -> ToolResult:
     """Call a tool on an MCP server. Use mcp_list_tools to discover available tools first.
 
     Args:

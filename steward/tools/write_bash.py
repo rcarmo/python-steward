@@ -27,7 +27,7 @@ def _expand_special_keys(text: str) -> str:
     return result
 
 
-def tool_handler(sessionId: str, input: Optional[str] = None, delay: Optional[float] = None) -> ToolResult:
+def tool_write_bash(sessionId: str, input: Optional[str] = None, delay: Optional[float] = None) -> ToolResult:
     """Send input to an async bash session. Supports text and special keys.
 
     Args:

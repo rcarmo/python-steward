@@ -7,7 +7,7 @@ from ..types import ToolResult
 from .shared import ensure_inside_workspace, normalize_path, rel_path
 
 
-def tool_handler(replacements: List[Dict[str, str]]) -> ToolResult:
+def tool_multi_replace_string_in_file(replacements: List[Dict[str, str]]) -> ToolResult:
     """Apply multiple string replacements across files.
 
     Args:

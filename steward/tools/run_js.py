@@ -14,7 +14,7 @@ JS_DEFAULT_TIMEOUT_MS = env_cap("STEWARD_JS_TIMEOUT_MS", 2000)
 JS_MAX_OUTPUT_BYTES = env_cap("STEWARD_JS_MAX_OUTPUT_BYTES", 16000)
 
 
-def tool_handler(
+def tool_run_js(
     code: Optional[str] = None,
     path: Optional[str] = None,
     timeoutMs: Optional[int] = None,

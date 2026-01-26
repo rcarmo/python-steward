@@ -56,7 +56,7 @@ def _default_input(question: str, choices: Optional[List[str]], allow_freeform: 
         return input().strip()
 
 
-def tool_handler(question: str, choices: Optional[List[str]] = None, allow_freeform: bool = True) -> ToolResult:
+def tool_ask_user(question: str, choices: Optional[List[str]] = None, allow_freeform: bool = True) -> ToolResult:
     """Ask the user a question and wait for their response.
 
     Args:

@@ -5,7 +5,7 @@ from ..types import ToolResult
 from .bash import list_sessions
 
 
-def tool_handler() -> ToolResult:
+def tool_list_bash() -> ToolResult:
     """List all active async bash sessions."""
     sessions = list_sessions()
 

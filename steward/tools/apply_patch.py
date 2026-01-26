@@ -10,7 +10,7 @@ from ..types import ToolResult
 from .shared import ensure_inside_workspace, normalize_path, rel_path
 
 
-def tool_handler(
+def tool_apply_patch(
     path: Optional[str] = None,
     patch: Optional[str] = None,
     patches: Optional[List[Dict[str, str]]] = None,

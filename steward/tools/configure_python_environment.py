@@ -31,7 +31,7 @@ def _choose_executable(python_env: Optional[str]) -> str:
     return which or sys.executable
 
 
-def tool_handler(
+def tool_configure_python_environment(
     resourcePath: Optional[str] = None,
     pythonEnvironment: Optional[str] = None,
 ) -> ToolResult:

@@ -23,7 +23,7 @@ def load_memories(path: Path) -> list:
         return []
 
 
-def tool_handler(subject: str, fact: str, citations: str, reason: str, category: str) -> ToolResult:
+def tool_store_memory(subject: str, fact: str, citations: str, reason: str, category: str) -> ToolResult:
     """Store a fact about the codebase for future code generation or review tasks.
 
     Args:

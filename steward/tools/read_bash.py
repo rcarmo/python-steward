@@ -9,7 +9,7 @@ from .bash import get_session
 from .shared import truncate_output
 
 
-def tool_handler(sessionId: str, delay: Optional[float] = None) -> ToolResult:
+def tool_read_bash(sessionId: str, delay: Optional[float] = None) -> ToolResult:
     """Read output from an async bash session.
 
     Args:

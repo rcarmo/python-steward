@@ -5,7 +5,7 @@ from ..types import ToolResult
 from .shared import ensure_inside_workspace, normalize_path, rel_path
 
 
-def tool_handler(path: str, old_str: str, new_str: str) -> ToolResult:
+def tool_edit(path: str, old_str: str, new_str: str) -> ToolResult:
     """Replace text in a file. Replaces exactly one occurrence.
 
     Args:

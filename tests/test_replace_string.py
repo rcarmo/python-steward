@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from steward.tools.multi_replace_string_in_file import tool_handler as multi_replace_handler
-from steward.tools.replace_string_in_file import tool_handler as replace_handler
+from steward.tools.multi_replace_string_in_file import tool_multi_replace_string_in_file as multi_replace_handler
+from steward.tools.replace_string_in_file import tool_replace_string_in_file as replace_handler
 
 
 def test_replace_string_basic(sandbox: Path) -> None:

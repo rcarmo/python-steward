@@ -38,7 +38,7 @@ def list_directory(dir_path: Path, max_depth: int = 2) -> List[str]:
     return entries
 
 
-def tool_handler(path: str = ".", view_range: Optional[List[int]] = None) -> ToolResult:
+def tool_view(path: str = ".", view_range: Optional[List[int]] = None) -> ToolResult:
     """View file contents or directory listing.
 
     Args:

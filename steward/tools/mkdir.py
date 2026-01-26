@@ -5,7 +5,7 @@ from ..types import ToolResult
 from .shared import ensure_inside_workspace, normalize_path, rel_path
 
 
-def tool_handler(path: str) -> ToolResult:
+def tool_mkdir(path: str) -> ToolResult:
     """Create a directory. Parent directories are created automatically if needed.
 
     Args:

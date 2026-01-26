@@ -7,7 +7,7 @@ from ..types import ToolResult
 from .shared import ensure_inside_workspace, normalize_path, rel_path
 
 
-def tool_handler(path: str, file_text: Optional[str] = None) -> ToolResult:
+def tool_create(path: str, file_text: Optional[str] = None) -> ToolResult:
     """Create a new file with specified content. Cannot overwrite existing files.
 
     Args:

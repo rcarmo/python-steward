@@ -8,7 +8,7 @@ from ..types import ToolResult
 from .shared import ensure_inside_workspace, normalize_path, run_captured, truncate_output
 
 
-def tool_handler(message: str, path: Optional[str] = None, all: bool = False) -> ToolResult:
+def tool_git_commit(message: str, path: Optional[str] = None, all: bool = False) -> ToolResult:
     """Commit staged changes.
 
     Args:
