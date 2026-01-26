@@ -2,44 +2,27 @@
 from __future__ import annotations
 
 from time import sleep
-from typing import Dict
+from typing import Optional
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .bash import get_session
 from .shared import truncate_output
 
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "read_bash",
-    "description": "Read output from an async bash session.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "sessionId": {
-                "type": "string",
-                "description": "The session ID returned by bash with mode='async'.",
-            },
-            "delay": {
-                "type": "number",
-                "description": "Time in seconds to wait before reading output (default: 5).",
-            },
-        },
-        "required": ["sessionId"],
-    },
-}
 
+def tool_handler(sessionId: str, delay: Optional[float] = None) -> ToolResult:
+    """Read output from an async bash session.
 
-def tool_handler(args: Dict) -> ToolResult:
-    session_id = args.get("sessionId")
-    if not isinstance(session_id, str):
-        raise ValueError("'sessionId' is required")
+    Args:
+        sessionId: The session ID returned by bash with mode='async'
+        delay: Time in seconds to wait before reading output (default: 5)
+    """
+    wait_time = delay if delay is not None else 5
+    if wait_time > 0:
+        sleep(min(wait_time, 300))  # Cap at 5 minutes
 
-    delay = args.get("delay") if isinstance(args.get("delay"), (int, float)) else 5
-    if delay > 0:
-        sleep(min(delay, 300))  # Cap at 5 minutes
-
-    session = get_session(session_id)
+    session = get_session(sessionId)
     if not session:
-        return {"id": "read_bash", "output": f"Session {session_id} not found"}
+        return {"id": "read_bash", "output": f"Session {sessionId} not found"}
 
     proc = session["proc"]
     output_parts = []

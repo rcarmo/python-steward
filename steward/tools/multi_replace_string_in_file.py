@@ -3,39 +3,16 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import ensure_inside_workspace, normalize_path, rel_path
 
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "multi_replace_string_in_file",
-    "description": "Apply multiple string replacements across files. REQUIRED: replacements (array).",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "replacements": {
-                "type": "array",
-                "description": "REQUIRED. Array of replacement objects, each with path, oldString, newString.",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "path": {"type": "string", "description": "File path to modify."},
-                        "oldString": {"type": "string", "description": "String to find."},
-                        "newString": {"type": "string", "description": "Replacement string."},
-                    },
-                    "required": ["path", "oldString", "newString"],
-                },
-            },
-        },
-        "required": ["replacements"],
-    },
-}
 
+def tool_handler(replacements: List[Dict[str, str]]) -> ToolResult:
+    """Apply multiple string replacements across files.
 
-def tool_handler(args: Dict) -> ToolResult:
-    replacements = args.get("replacements")
-    if not isinstance(replacements, list):
-        raise ValueError("'replacements' must be an array")
-
+    Args:
+        replacements: Array of replacement objects with path, oldString, newString
+    """
     if not replacements:
         raise ValueError("'replacements' cannot be empty")
 

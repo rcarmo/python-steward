@@ -7,17 +7,17 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
-def test_mcp_list_tools_invalid_server_type(tool_handlers, sandbox: Path):
-    with pytest.raises(ValueError, match="'server' must be a string"):
-        tool_handlers["mcp_list_tools"]({"server": 123})
+def test_mcp_list_tools_invalid_server(tool_handlers, sandbox: Path):
+    """Test that invalid server names raise ValueError."""
+    # Empty string should fail when trying to find in config
+    with pytest.raises(ValueError, match="Unknown server"):
+        tool_handlers["mcp_list_tools"]({"server": ""})
 
 
-def test_mcp_call_invalid_args(tool_handlers, sandbox: Path):
-    with pytest.raises(ValueError, match="'server' must be a string"):
-        tool_handlers["mcp_call"]({"server": None, "tool": "test"})
-
-    with pytest.raises(ValueError, match="'tool' must be a string"):
-        tool_handlers["mcp_call"]({"server": "srv", "tool": 123})
+def test_mcp_call_invalid_server(tool_handlers, sandbox: Path):
+    """Test that calling with non-existent server raises error."""
+    with pytest.raises(ValueError, match="Unknown server"):
+        tool_handlers["mcp_call"]({"server": "nonexistent", "tool": "test"})
 
 
 @patch("steward.tools.mcp_list_tools.list_tools")

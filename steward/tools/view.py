@@ -2,29 +2,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import ensure_inside_workspace, env_cap, normalize_path, rel_path
-
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "view",
-    "description": "View file contents or directory listing.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "Path to file or directory. Defaults to current directory if not provided.",
-            },
-            "view_range": {
-                "type": "array",
-                "items": {"type": "integer"},
-                "description": "Optional [start_line, end_line] range for files. Use [start, -1] to view from start to end.",
-            },
-        },
-    },
-}
 
 IGNORED_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv"}
 
@@ -57,12 +38,14 @@ def list_directory(dir_path: Path, max_depth: int = 2) -> List[str]:
     return entries
 
 
-def tool_handler(args: Dict) -> ToolResult:
-    raw_path = args.get("path")
-    if not raw_path or not isinstance(raw_path, str):
-        raw_path = "."  # Default to current directory
+def tool_handler(path: str = ".", view_range: Optional[List[int]] = None) -> ToolResult:
+    """View file contents or directory listing.
 
-    abs_path = normalize_path(raw_path)
+    Args:
+        path: Path to file or directory (default: current directory)
+        view_range: [start_line, end_line] for partial file view (use -1 for end)
+    """
+    abs_path = normalize_path(path)
     ensure_inside_workspace(abs_path)
 
     # Directory listing
@@ -74,7 +57,6 @@ def tool_handler(args: Dict) -> ToolResult:
     if not abs_path.is_file():
         raise ValueError(f"Path does not exist: {rel_path(abs_path)}")
 
-    view_range = args.get("view_range")
     start_line: int = 1
     end_line: Optional[int] = None
 

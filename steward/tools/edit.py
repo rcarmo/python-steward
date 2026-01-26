@@ -1,49 +1,19 @@
 """edit tool - string replacement in files (aligned with Copilot CLI)."""
 from __future__ import annotations
 
-from typing import Dict
-
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import ensure_inside_workspace, normalize_path, rel_path
 
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "edit",
-    "description": "Replace text in a file. REQUIRED: path, old_str, new_str (all strings). Replaces exactly one occurrence.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "REQUIRED. Path to file to edit. Must be a non-empty string.",
-            },
-            "old_str": {
-                "type": "string",
-                "description": "REQUIRED. Text to find and replace. Must match exactly one occurrence in the file.",
-            },
-            "new_str": {
-                "type": "string",
-                "description": "REQUIRED. Replacement text. Can be empty string to delete old_str.",
-            },
-        },
-        "required": ["path", "old_str", "new_str"],
-    },
-}
 
+def tool_handler(path: str, old_str: str, new_str: str) -> ToolResult:
+    """Replace text in a file. Replaces exactly one occurrence.
 
-def tool_handler(args: Dict) -> ToolResult:
-    raw_path = args.get("path")
-    if not isinstance(raw_path, str):
-        raise ValueError("'path' must be a string")
-
-    old_str = args.get("old_str")
-    new_str = args.get("new_str", "")
-
-    if not isinstance(old_str, str):
-        raise ValueError("'old_str' must be a string")
-    if not isinstance(new_str, str):
-        raise ValueError("'new_str' must be a string")
-
-    abs_path = normalize_path(raw_path)
+    Args:
+        path: Path to file to edit
+        old_str: Text to find and replace - must match exactly once
+        new_str: Replacement text
+    """
+    abs_path = normalize_path(path)
     ensure_inside_workspace(abs_path)
 
     if not abs_path.is_file():

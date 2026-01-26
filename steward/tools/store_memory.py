@@ -4,42 +4,9 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import ensure_inside_workspace
-
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "store_memory",
-    "description": "Store a fact about the codebase for future code generation or review tasks. Facts should be clear, concise statements about conventions, structure, logic, or usage.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "subject": {
-                "type": "string",
-                "description": "The topic this memory relates to (1-2 words). Examples: 'naming conventions', 'testing practices', 'authentication', 'error handling'.",
-            },
-            "fact": {
-                "type": "string",
-                "description": "A clear, short description of the fact (under 200 characters). Examples: 'Use JWT for authentication.', 'Follow PEP 257 docstring conventions.'",
-            },
-            "citations": {
-                "type": "string",
-                "description": "The source of this fact, such as a file and line number (e.g., 'path/file.go:123') or 'User input: ...'.",
-            },
-            "reason": {
-                "type": "string",
-                "description": "A clear explanation of why this fact is important and what future tasks it will help with (2-3 sentences).",
-            },
-            "category": {
-                "type": "string",
-                "enum": ["bootstrap_and_build", "user_preferences", "general", "file_specific"],
-                "description": "The type of memory: 'bootstrap_and_build' (how to build/test), 'user_preferences' (coding style), 'general' (file-independent facts), or 'file_specific' (info about specific files).",
-            },
-        },
-        "required": ["subject", "fact", "citations", "reason", "category"],
-    },
-}
 
 
 def memory_file() -> Path:
@@ -56,23 +23,26 @@ def load_memories(path: Path) -> list:
         return []
 
 
-def tool_handler(args: Dict) -> ToolResult:
-    subject = args.get("subject")
-    fact = args.get("fact")
-    citations = args.get("citations")
-    reason = args.get("reason")
-    category = args.get("category")
+def tool_handler(subject: str, fact: str, citations: str, reason: str, category: str) -> ToolResult:
+    """Store a fact about the codebase for future code generation or review tasks.
 
+    Args:
+        subject: The topic this memory relates to (1-2 words)
+        fact: A clear, short description of the fact (under 200 characters)
+        citations: The source of this fact (e.g., 'path/file.go:123')
+        reason: Explanation of why this fact is important (2-3 sentences)
+        category: Type: bootstrap_and_build, user_preferences, general, or file_specific
+    """
     # Validate required fields
-    if not isinstance(subject, str) or not subject.strip():
+    if not subject or not subject.strip():
         raise ValueError("'subject' must be a non-empty string")
-    if not isinstance(fact, str) or not fact.strip():
+    if not fact or not fact.strip():
         raise ValueError("'fact' must be a non-empty string")
     if len(fact) > 200:
         raise ValueError("'fact' must be under 200 characters")
-    if not isinstance(citations, str) or not citations.strip():
+    if not citations or not citations.strip():
         raise ValueError("'citations' must be a non-empty string")
-    if not isinstance(reason, str) or not reason.strip():
+    if not reason or not reason.strip():
         raise ValueError("'reason' must be a non-empty string")
     valid_categories = {"bootstrap_and_build", "user_preferences", "general", "file_specific"}
     if category not in valid_categories:

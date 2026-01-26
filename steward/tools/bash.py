@@ -10,65 +10,39 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from ..config import env_list
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import audit_execute, ensure_inside_workspace, env_cap, normalize_path, truncate_output
-
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "bash",
-    "description": "Run a shell command. REQUIRED: command (string). Supports sync/async modes.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "command": {
-                "type": "string",
-                "description": "REQUIRED. The Bash command to run. Must be a non-empty string.",
-            },
-            "description": {
-                "type": "string",
-                "description": "A short description of what the command does (for logging).",
-            },
-            "mode": {
-                "type": "string",
-                "enum": ["sync", "async"],
-                "description": "Execution mode: 'sync' waits for completion (default), 'async' runs in background.",
-            },
-            "initial_wait": {
-                "type": "number",
-                "description": "Time in seconds to wait for initial output in sync mode (default: 30).",
-            },
-            "detach": {
-                "type": "boolean",
-                "description": "If true with async mode, process persists after session ends. Use for servers/daemons.",
-            },
-            "cwd": {
-                "type": "string",
-                "description": "Working directory for the command.",
-            },
-        },
-        "required": ["command"],
-    },
-}
 
 # Session storage for async processes
 _sessions: Dict[str, dict] = {}
 _sessions_lock = threading.Lock()
 
 
-def tool_handler(args: Dict) -> ToolResult:
+def tool_handler(
+    command: str,
+    description: str = "",
+    mode: str = "sync",
+    initial_wait: Optional[float] = None,
+    detach: bool = False,
+    cwd: Optional[str] = None,
+) -> ToolResult:
+    """Run a shell command.
+
+    Args:
+        command: The bash command to run
+        description: Short description for logging
+        mode: 'sync' (default) or 'async'
+        initial_wait: Seconds to wait for output in sync mode (default: 30)
+        detach: If true with async, process persists after session
+        cwd: Working directory for the command
+    """
     if getenv("STEWARD_ALLOW_EXECUTE") != "1":
         raise ValueError("bash disabled; set STEWARD_ALLOW_EXECUTE=1 to enable")
 
-    command = args.get("command")
-    if not isinstance(command, str):
-        raise ValueError("'command' must be a string")
+    wait_time = initial_wait if initial_wait is not None else 30
+    working_dir = normalize_path(cwd) if cwd else Path.cwd()
 
-    description = args.get("description", "")
-    mode = args.get("mode", "sync")
-    initial_wait = args.get("initial_wait") if isinstance(args.get("initial_wait"), (int, float)) else 30
-    detach = args.get("detach") is True
-    cwd = normalize_path(args.get("cwd")) if isinstance(args.get("cwd"), str) else Path.cwd()
-
-    ensure_inside_workspace(cwd)
+    ensure_inside_workspace(working_dir)
 
     # Check allow/deny lists
     env_allow = env_list("STEWARD_EXEC_ALLOW")
@@ -84,9 +58,9 @@ def tool_handler(args: Dict) -> ToolResult:
     audit_enabled = getenv("STEWARD_EXEC_AUDIT") != "0"
 
     if mode == "async":
-        return _run_async(command, cwd, detach, audit_enabled, description)
+        return _run_async(command, working_dir, detach, audit_enabled, description)
     else:
-        return _run_sync(command, cwd, initial_wait, max_output_bytes, audit_enabled, description)
+        return _run_sync(command, working_dir, wait_time, max_output_bytes, audit_enabled, description)
 
 
 def _run_sync(command: str, cwd: Path, initial_wait: float, max_output_bytes: int, audit_enabled: bool, description: str) -> ToolResult:

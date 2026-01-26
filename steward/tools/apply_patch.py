@@ -2,53 +2,30 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from unidiff import PatchSet
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import ensure_inside_workspace, normalize_path, rel_path
 
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "apply_patch",
-    "description": "Apply a unified diff patch to a file. REQUIRED: path (string), patch (string).",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "REQUIRED. Path to the file to patch.",
-            },
-            "patch": {
-                "type": "string",
-                "description": "REQUIRED. The unified diff patch content to apply.",
-            },
-            "patches": {
-                "type": "array",
-                "description": "Optional batch mode: array of {path, patch} objects to apply multiple patches.",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "path": {"type": "string", "description": "Path to file."},
-                        "patch": {"type": "string", "description": "Patch content."},
-                    },
-                    "required": ["path", "patch"],
-                },
-            },
-            "dryRun": {
-                "type": "boolean",
-                "description": "If true, validate patch without applying.",
-            },
-        },
-        "required": ["path", "patch"],
-    },
-}
 
+def tool_handler(
+    path: Optional[str] = None,
+    patch: Optional[str] = None,
+    patches: Optional[List[Dict[str, str]]] = None,
+    dryRun: bool = False,
+) -> ToolResult:
+    """Apply a unified diff patch to a file.
 
-def tool_handler(args: Dict) -> ToolResult:
-    dry_run = args.get("dryRun") is True
-    if isinstance(args.get("patches"), list):
-        batch: List[Dict] = [item for item in args.get("patches", []) if isinstance(item, dict)]
+    Args:
+        path: Path to the file to patch (required for single file mode)
+        patch: The unified diff patch content to apply (required for single file mode)
+        patches: Array of {path, patch} objects for batch mode
+        dryRun: If true, validate patch without applying
+    """
+    if patches is not None:
+        batch: List[Dict[str, str]] = [item for item in patches if isinstance(item, dict)]
         if not batch:
             raise ValueError("'patches' must be an array of {path, patch}")
         results: List[Tuple[Path, str]] = []
@@ -63,22 +40,22 @@ def tool_handler(args: Dict) -> ToolResult:
             if next_text is None:
                 return {"id": "edit", "output": f"Patch could not be applied to {rel_path(abs_path)}", "error": True}
             results.append((abs_path, next_text))
-        if dry_run:
+        if dryRun:
             return {"id": "edit", "output": f"Dry-run OK for {len(results)} file(s)"}
         for abs_path, text in results:
             abs_path.write_text(text, encoding="utf8")
         return {"id": "edit", "output": f"Patched {len(results)} file(s)"}
 
-    raw_path = args.get("path")
-    patch_text = args.get("patch")
-    if not isinstance(raw_path, str) or not isinstance(patch_text, str):
-        raise ValueError("'path' and 'patch' must be strings")
-    abs_path = normalize_path(raw_path)
+    # Single file mode - path and patch are required
+    if not path or not patch:
+        raise ValueError("'path' and 'patch' are required for single file mode")
+
+    abs_path = normalize_path(path)
     ensure_inside_workspace(abs_path)
-    next_text = _apply_patch_to_file(abs_path, patch_text)
+    next_text = _apply_patch_to_file(abs_path, patch)
     if next_text is None:
         return {"id": "edit", "output": "Patch could not be applied", "error": True}
-    if dry_run:
+    if dryRun:
         return {"id": "edit", "output": f"Dry-run OK for {rel_path(abs_path)}"}
     abs_path.write_text(next_text, encoding="utf8")
     return {"id": "edit", "output": f"Patched {rel_path(abs_path)}"}

@@ -3,40 +3,13 @@ from __future__ import annotations
 
 import base64
 import re
-from typing import Dict
+from typing import Optional
 from urllib.parse import unquote_to_bytes
 
 import requests
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import env_cap, infer_content_type
-
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "web_fetch",
-    "description": "Fetch a URL and return the page as either markdown or raw HTML",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "url": {
-                "type": "string",
-                "description": "The URL to fetch",
-            },
-            "raw": {
-                "type": "boolean",
-                "description": "If true, returns raw HTML. If false, converts to simplified markdown (default: false)",
-            },
-            "max_length": {
-                "type": "number",
-                "description": "Maximum number of characters to return (default: 5000, maximum: 20000)",
-            },
-            "start_index": {
-                "type": "number",
-                "description": "Start index for pagination. Use this to continue reading if content was truncated (default: 0)",
-            },
-        },
-        "required": ["url"],
-    },
-}
 
 DEFAULT_MAX_LENGTH = 5000
 MAX_ALLOWED_LENGTH = 20000
@@ -90,19 +63,22 @@ def _decode_data_url(url: str) -> tuple[str, str]:
     return content_type, data.decode("utf8", errors="ignore")
 
 
-def tool_handler(args: Dict) -> ToolResult:
-    url = args.get("url")
-    if not isinstance(url, str):
-        raise ValueError("'url' must be a string")
+def tool_handler(
+    url: str,
+    raw: bool = False,
+    max_length: Optional[int] = None,
+    start_index: int = 0,
+) -> ToolResult:
+    """Fetch a URL and return the page as either markdown or raw HTML.
 
-    raw = args.get("raw", False) is True
-    max_length = args.get("max_length")
-    if not isinstance(max_length, int) or max_length <= 0:
-        max_length = env_cap("STEWARD_WEB_MAX_LENGTH", DEFAULT_MAX_LENGTH)
-    max_length = min(max_length, MAX_ALLOWED_LENGTH)
-    start_index = args.get("start_index")
-    if not isinstance(start_index, int) or start_index < 0:
-        start_index = 0
+    Args:
+        url: The URL to fetch
+        raw: If true, returns raw HTML; if false, converts to markdown (default: false)
+        max_length: Maximum number of characters to return (default: 5000, max: 20000)
+        start_index: Start index for pagination (default: 0)
+    """
+    limit = max_length if max_length and max_length > 0 else env_cap("STEWARD_WEB_MAX_LENGTH", DEFAULT_MAX_LENGTH)
+    limit = min(limit, MAX_ALLOWED_LENGTH)
 
     content_type: str
     content: str
@@ -124,7 +100,7 @@ def tool_handler(args: Dict) -> ToolResult:
 
     # Apply pagination
     total_length = len(content)
-    paginated = content[start_index:start_index + max_length]
+    paginated = content[start_index:start_index + limit]
     truncated = start_index + len(paginated) < total_length
 
     output_lines = [f"url: {url}", f"content-type: {content_type}"]

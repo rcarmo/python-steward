@@ -3,33 +3,9 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import Dict, List, Optional
+from typing import List, Optional
 
-from ..types import ToolDefinition, ToolResult
-
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "ask_user",
-    "description": "Ask the user a question and wait for their response. Use for clarifying requirements, getting preferences, or offering choices.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "question": {
-                "type": "string",
-                "description": "The question to ask the user.",
-            },
-            "choices": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "Optional list of choices for multiple choice. Prefer providing choices when possible.",
-            },
-            "allow_freeform": {
-                "type": "boolean",
-                "description": "Whether to allow freeform text input in addition to choices (default: true).",
-            },
-        },
-        "required": ["question"],
-    },
-}
+from ..types import ToolResult
 
 # Callback for getting user input (can be overridden for testing or different UIs)
 _input_callback: Optional[callable] = None
@@ -80,18 +56,16 @@ def _default_input(question: str, choices: Optional[List[str]], allow_freeform: 
         return input().strip()
 
 
-def tool_handler(args: Dict) -> ToolResult:
-    question = args.get("question")
-    if not isinstance(question, str) or not question.strip():
+def tool_handler(question: str, choices: Optional[List[str]] = None, allow_freeform: bool = True) -> ToolResult:
+    """Ask the user a question and wait for their response.
+
+    Args:
+        question: The question to ask the user
+        choices: List of choices for multiple choice (optional)
+        allow_freeform: Allow freeform text input in addition to choices (default: true)
+    """
+    if not question or not question.strip():
         raise ValueError("'question' is required and must be non-empty")
-
-    choices = args.get("choices")
-    if choices is not None and not isinstance(choices, list):
-        raise ValueError("'choices' must be a list of strings")
-
-    allow_freeform = args.get("allow_freeform", True)
-    if not isinstance(allow_freeform, bool):
-        allow_freeform = True
 
     # Use custom callback if set, otherwise default console input
     if _input_callback:

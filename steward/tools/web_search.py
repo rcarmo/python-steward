@@ -2,33 +2,21 @@
 from __future__ import annotations
 
 import re
-from typing import Dict
 from urllib.parse import unquote
 
 import requests
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import env_cap
 
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "web_search",
-    "description": "AI-powered web search returning synthesized answers with citations. Use for recent events, frequently updated info, or when explicit web search is needed.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "query": {
-                "type": "string",
-                "description": "A clear, specific question or search query requiring up-to-date information from the web",
-            },
-        },
-        "required": ["query"],
-    },
-}
 
+def tool_handler(query: str) -> ToolResult:
+    """AI-powered web search returning synthesized answers with citations.
 
-def tool_handler(args: Dict) -> ToolResult:
-    query = args.get("query")
-    if not isinstance(query, str) or not query.strip():
+    Args:
+        query: A clear, specific question or search query
+    """
+    if not query or not query.strip():
         raise ValueError("'query' must be a non-empty string")
 
     max_results = env_cap("STEWARD_SEARCH_WEB_MAX_RESULTS", 5)

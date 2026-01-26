@@ -2,51 +2,35 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List
+from typing import List, Optional
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import ensure_inside_workspace, normalize_path, run_captured, truncate_output
 
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "git_diff",
-    "description": "Show git diff output. Can show staged changes, specific files, or compare refs.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "Optional. Working directory for git command. Defaults to current directory.",
-            },
-            "file": {
-                "type": "string",
-                "description": "Optional. Specific file to diff.",
-            },
-            "ref": {
-                "type": "string",
-                "description": "Optional. Git ref (branch, commit, tag) to diff against.",
-            },
-            "staged": {
-                "type": "boolean",
-                "description": "Optional. If true, show staged (cached) changes only.",
-            },
-        },
-    },
-}
 
+def tool_handler(
+    path: Optional[str] = None,
+    file: Optional[str] = None,
+    ref: Optional[str] = None,
+    staged: bool = False,
+) -> ToolResult:
+    """Show git diff output. Can show staged changes, specific files, or compare refs.
 
-def tool_handler(args: Dict) -> ToolResult:
-    cwd = normalize_path(args.get("path")) if isinstance(args.get("path"), str) else Path.cwd()
-    file_arg = args.get("file") if isinstance(args.get("file"), str) else None
-    ref = args.get("ref") if isinstance(args.get("ref"), str) else None
-    staged = args.get("staged") is True
+    Args:
+        path: Working directory for git command (default: current directory)
+        file: Specific file to diff
+        ref: Git ref (branch, commit, tag) to diff against
+        staged: If true, show staged (cached) changes only
+    """
+    cwd = normalize_path(path) if path else Path.cwd()
     ensure_inside_workspace(cwd)
     cmd: List[str] = ["git", "diff"]
     if staged:
         cmd.append("--cached")
     if ref:
         cmd.append(ref)
-    if file_arg:
-        cmd.extend(["--", file_arg])
+    if file:
+        cmd.extend(["--", file])
     exit_code, stdout, stderr = run_captured(cmd, cwd)
     stderr_part = "\nstderr:\n" + stderr if stderr else ""
     body = f"exit {exit_code}\n{stdout}{stderr_part}"

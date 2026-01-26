@@ -3,37 +3,13 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, Iterable, List
+from typing import Iterable, List, Optional
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import ensure_inside_workspace, is_binary_buffer, rel_path
 
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "list_code_usages",
-    "description": "Find all occurrences of a symbol/identifier across files. REQUIRED: symbolName (string).",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "symbolName": {
-                "type": "string",
-                "description": "REQUIRED. The symbol/identifier name to search for.",
-            },
-            "filePaths": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "Optional. List of file or directory paths to search. Defaults to current directory.",
-            },
-            "maxResults": {
-                "type": "number",
-                "description": "Optional. Maximum number of results to return.",
-            },
-        },
-        "required": ["symbolName"],
-    },
-}
 
-
-def iter_targets(file_paths: List[str] | None) -> Iterable[Path]:
+def iter_targets(file_paths: Optional[List[str]]) -> Iterable[Path]:
     if not file_paths:
         yield Path.cwd()
         return
@@ -55,19 +31,22 @@ def iter_files(target: Path) -> Iterable[Path]:
                 yield entry
 
 
-def tool_handler(args: Dict) -> ToolResult:
-    symbol = args.get("symbolName") if isinstance(args.get("symbolName"), str) else None
-    file_paths = args.get("filePaths") if isinstance(args.get("filePaths"), list) else None
-    max_results = args.get("maxResults") if isinstance(args.get("maxResults"), int) else 200
-    if not symbol:
-        raise ValueError("'symbolName' must be a string")
-    if file_paths is not None and not all(isinstance(p, str) for p in file_paths):
-        raise ValueError("'filePaths' must be an array of strings")
+def tool_handler(
+    symbolName: str,
+    filePaths: Optional[List[str]] = None,
+    maxResults: int = 200,
+) -> ToolResult:
+    """Find all occurrences of a symbol/identifier across files.
 
-    pattern = re.compile(rf"\b{re.escape(symbol)}\b")
+    Args:
+        symbolName: The symbol/identifier name to search for
+        filePaths: List of file or directory paths to search (default: current directory)
+        maxResults: Maximum number of results to return (default: 200)
+    """
+    pattern = re.compile(rf"\b{re.escape(symbolName)}\b")
     matches: List[str] = []
 
-    for target in iter_targets(file_paths):
+    for target in iter_targets(filePaths):
         for file in iter_files(target):
             ensure_inside_workspace(file, must_exist=True)
             try:
@@ -83,7 +62,7 @@ def tool_handler(args: Dict) -> ToolResult:
             for idx, line in enumerate(lines, start=1):
                 if pattern.search(line):
                     matches.append(f"{rel_path(file)}:{idx}: {line.strip()}")
-                    if len(matches) >= max_results:
+                    if len(matches) >= maxResults:
                         return {"id": "list_code_usages", "output": "\n".join(matches)}
 
     return {"id": "list_code_usages", "output": "\n".join(matches)}

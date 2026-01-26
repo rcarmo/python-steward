@@ -4,9 +4,9 @@ from __future__ import annotations
 import fnmatch
 import re
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import (
     ensure_inside_workspace,
     env_cap,
@@ -16,62 +16,6 @@ from .shared import (
     rel_path,
     walk,
 )
-
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "grep",
-    "description": "Search file contents for a regex pattern. REQUIRED: pattern (string). Returns matching files or lines.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "pattern": {
-                "type": "string",
-                "description": "REQUIRED. The regex pattern to search for. Must be a non-empty string.",
-            },
-            "path": {
-                "type": "string",
-                "description": "File or directory to search in. Defaults to current working directory.",
-            },
-            "glob": {
-                "type": "string",
-                "description": "Glob pattern to filter files (e.g., '*.js', '*.{ts,tsx}').",
-            },
-            "output_mode": {
-                "type": "string",
-                "enum": ["content", "files_with_matches", "count"],
-                "description": "Output format: 'content' shows matching lines, 'files_with_matches' shows only paths, 'count' shows match counts per file.",
-            },
-            "-i": {
-                "type": "boolean",
-                "description": "Case insensitive search.",
-            },
-            "-n": {
-                "type": "boolean",
-                "description": "Show line numbers (requires output_mode: 'content').",
-            },
-            "-A": {
-                "type": "number",
-                "description": "Lines of context after match.",
-            },
-            "-B": {
-                "type": "number",
-                "description": "Lines of context before match.",
-            },
-            "-C": {
-                "type": "number",
-                "description": "Lines of context before and after match.",
-            },
-            "head_limit": {
-                "type": "number",
-                "description": "Limit output to first N results.",
-            },
-            "multiline": {
-                "type": "boolean",
-                "description": "Enable multiline mode where patterns can span lines.",
-            },
-        },
-        "required": ["pattern"],
-    },
-}
 
 # File type to glob mapping (subset of ripgrep types)
 TYPE_GLOBS = {
@@ -102,23 +46,42 @@ def matches_glob(filename: str, glob_pattern: str) -> bool:
     return fnmatch.fnmatch(filename, glob_pattern)
 
 
-def tool_handler(args: Dict) -> ToolResult:
-    pattern = args.get("pattern")
-    if not isinstance(pattern, str) or not pattern:
+def tool_handler(
+    pattern: str,
+    path: Optional[str] = None,
+    glob: Optional[str] = None,
+    output_mode: str = "files_with_matches",
+    case_insensitive: bool = False,
+    show_line_numbers: bool = False,
+    context_after: int = 0,
+    context_before: int = 0,
+    context_both: int = 0,
+    head_limit: Optional[int] = None,
+    multiline: bool = False,
+) -> ToolResult:
+    """Search file contents for a regex pattern.
+
+    Args:
+        pattern: Regex pattern to search for
+        path: File or directory to search (default: current directory)
+        glob: Filter files by glob pattern (e.g., '*.js')
+        output_mode: 'files_with_matches', 'content', or 'count'
+        case_insensitive: Case insensitive search (-i flag)
+        show_line_numbers: Show line numbers (-n flag)
+        context_after: Lines of context after match (-A flag)
+        context_before: Lines of context before match (-B flag)
+        context_both: Lines of context before and after (-C flag)
+        head_limit: Max number of results
+        multiline: Enable multiline pattern matching
+    """
+    if not pattern:
         return {"id": "grep", "output": "Error: 'pattern' is required and must be a non-empty string", "error": True}
 
-    root = normalize_path(args.get("path") if isinstance(args.get("path"), str) else ".")
+    root = normalize_path(path if path else ".")
     ensure_inside_workspace(root)
 
-    glob_pattern = args.get("glob") if isinstance(args.get("glob"), str) else None
-    output_mode = args.get("output_mode", "files_with_matches")
-    case_insensitive = args.get("-i") is True
-    show_line_numbers = args.get("-n") is True
-    context_after = args.get("-A") if isinstance(args.get("-A"), int) else 0
-    context_before = args.get("-B") if isinstance(args.get("-B"), int) else 0
-    context_both = args.get("-C") if isinstance(args.get("-C"), int) else 0
-    head_limit = args.get("head_limit") if isinstance(args.get("head_limit"), int) else env_cap("STEWARD_SEARCH_MAX_RESULTS", 100)
-    multiline = args.get("multiline") is True
+    glob_pattern = glob
+    limit = head_limit if head_limit is not None else env_cap("STEWARD_SEARCH_MAX_RESULTS", 100)
 
     if context_both > 0:
         context_before = context_both
@@ -141,7 +104,7 @@ def tool_handler(args: Dict) -> ToolResult:
     result_count = 0
 
     def limit_reached() -> bool:
-        return result_count >= head_limit
+        return result_count >= limit
 
     def visit(file_path: Path) -> None:
         nonlocal result_count
@@ -208,9 +171,9 @@ def tool_handler(args: Dict) -> ToolResult:
 
     # Format output based on mode
     if output_mode == "files_with_matches":
-        output = "\n".join(files_with_matches[:head_limit])
+        output = "\n".join(files_with_matches[:limit])
     elif output_mode == "count":
-        output = "\n".join(f"{f}:{c}" for f, c in list(file_counts.items())[:head_limit])
+        output = "\n".join(f"{f}:{c}" for f, c in list(file_counts.items())[:limit])
     else:  # content
         output = "\n".join(results)
 

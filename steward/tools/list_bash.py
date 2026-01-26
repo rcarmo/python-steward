@@ -1,22 +1,12 @@
 """list_bash tool - list active bash sessions."""
 from __future__ import annotations
 
-from typing import Dict
-
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .bash import list_sessions
 
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "list_bash",
-    "description": "List all active async bash sessions.",
-    "parameters": {
-        "type": "object",
-        "properties": {},
-    },
-}
 
-
-def tool_handler(args: Dict) -> ToolResult:
+def tool_handler() -> ToolResult:
+    """List all active async bash sessions."""
     sessions = list_sessions()
 
     if not sessions:

@@ -5,22 +5,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import ensure_inside_workspace, normalize_path, rel_path
-
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "load_skill",
-    "description": "Load a skill definition from a SKILL.md file. Use to discover capabilities of tools, agents, or projects in the workspace.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "Path to SKILL.md file, or directory containing SKILL.md. Defaults to current directory.",
-            },
-        },
-    },
-}
 
 
 @dataclass
@@ -197,8 +183,13 @@ def extract_sections(body: str) -> Dict[str, str]:
     return {k: "\n".join(v).strip() for k, v in sections.items()}
 
 
-def tool_handler(args: Dict) -> ToolResult:
-    raw_path = args.get("path") if isinstance(args.get("path"), str) else "."
+def tool_handler(path: Optional[str] = None) -> ToolResult:
+    """Load a skill definition from a SKILL.md file.
+
+    Args:
+        path: Path to SKILL.md file, or directory containing SKILL.md (default: current directory)
+    """
+    raw_path = path if path else "."
     abs_path = normalize_path(raw_path)
     ensure_inside_workspace(abs_path)
 

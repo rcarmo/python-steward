@@ -5,23 +5,10 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict
+from typing import Optional
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "get_python_executable_details",
-    "description": "Return the configured Python executable path and version info.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "resourcePath": {
-                "type": "string",
-                "description": "Optional. Working directory context.",
-            },
-        },
-    },
-}
 
 def env_file() -> Path:
     return Path.cwd() / ".steward-env.json"
@@ -40,8 +27,12 @@ def _load_executable() -> str:
     return sys.executable
 
 
-def tool_handler(args: Dict) -> ToolResult:
-    _ = args.get("resourcePath") if isinstance(args.get("resourcePath"), str) else None
+def tool_handler(resourcePath: Optional[str] = None) -> ToolResult:
+    """Return the configured Python executable path and version info.
+
+    Args:
+        resourcePath: Working directory context
+    """
     exe = _load_executable()
     try:
         completed = subprocess.run(

@@ -3,67 +3,48 @@ from __future__ import annotations
 
 import multiprocessing as mp
 from pathlib import Path
-from typing import Dict, List
+from typing import List, Optional
 
 import quickjs
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import ensure_inside_workspace, env_cap, normalize_path, truncate_output
 
 JS_DEFAULT_TIMEOUT_MS = env_cap("STEWARD_JS_TIMEOUT_MS", 2000)
 JS_MAX_OUTPUT_BYTES = env_cap("STEWARD_JS_MAX_OUTPUT_BYTES", 16000)
 
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "run_js",
-    "description": "Execute JavaScript in a sandboxed QuickJS runtime. Provide either code or path.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "code": {
-                "type": "string",
-                "description": "JavaScript code to execute. Provide this OR path, not both.",
-            },
-            "path": {
-                "type": "string",
-                "description": "Path to JavaScript file to execute. Provide this OR code, not both.",
-            },
-            "timeoutMs": {
-                "type": "number",
-                "description": "Optional. Execution timeout in milliseconds. Default: 2000.",
-            },
-            "maxOutputBytes": {
-                "type": "number",
-                "description": "Optional. Maximum output size in bytes. Default: 16000.",
-            },
-            "sandboxDir": {
-                "type": "string",
-                "description": "Optional. Directory to use as sandbox root.",
-            },
-            "allowNetwork": {
-                "type": "boolean",
-                "description": "Optional. If true, allow network access (not implemented).",
-            },
-        },
-    },
-}
 
+def tool_handler(
+    code: Optional[str] = None,
+    path: Optional[str] = None,
+    timeoutMs: Optional[int] = None,
+    maxOutputBytes: Optional[int] = None,
+    sandboxDir: str = "/sandbox",
+    allowNetwork: bool = False,
+) -> ToolResult:
+    """Execute JavaScript in a sandboxed QuickJS runtime.
 
-def tool_handler(args: Dict) -> ToolResult:
-    code = args.get("code") if isinstance(args.get("code"), str) else None
-    path_arg = args.get("path") if isinstance(args.get("path"), str) else None
-    if code is None and path_arg:
-        abs_path = normalize_path(path_arg)
+    Args:
+        code: JavaScript code to execute (provide this OR path)
+        path: Path to JavaScript file to execute (provide this OR code)
+        timeoutMs: Execution timeout in milliseconds (default: 2000)
+        maxOutputBytes: Maximum output size in bytes (default: 16000)
+        sandboxDir: Directory to use as sandbox root (default: /sandbox)
+        allowNetwork: If true, allow network access
+    """
+    js_code = code
+    if js_code is None and path:
+        abs_path = normalize_path(path)
         ensure_inside_workspace(abs_path)
-        code = Path(abs_path).read_text(encoding="utf8")
-    if code is None:
+        js_code = Path(abs_path).read_text(encoding="utf8")
+    if js_code is None:
         raise ValueError("Either 'code' or 'path' must be provided")
-    timeout_ms = args.get("timeoutMs") if isinstance(args.get("timeoutMs"), int) else JS_DEFAULT_TIMEOUT_MS
-    max_output = args.get("maxOutputBytes") if isinstance(args.get("maxOutputBytes"), int) else JS_MAX_OUTPUT_BYTES
-    allow_network = args.get("allowNetwork") is True
-    sandbox_root = args.get("sandboxDir") if isinstance(args.get("sandboxDir"), str) else "/sandbox"
+
+    timeout_ms = timeoutMs if timeoutMs is not None else JS_DEFAULT_TIMEOUT_MS
+    max_output = maxOutputBytes if maxOutputBytes is not None else JS_MAX_OUTPUT_BYTES
 
     parent_conn, child_conn = mp.Pipe()
-    proc = mp.Process(target=_run_js_worker, args=(child_conn, code, allow_network, sandbox_root))
+    proc = mp.Process(target=_run_js_worker, args=(child_conn, js_code, allowNetwork, sandboxDir))
     proc.start()
     proc.join(timeout_ms / 1000.0)
 

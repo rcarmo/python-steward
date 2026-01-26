@@ -3,18 +3,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict
 
-from ..types import ToolDefinition, ToolResult
-
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "workspace_summary",
-    "description": "Basic workspace summary (package info, top-level dirs/files)",
-    "parameters": {"type": "object", "properties": {}},
-}
+from ..types import ToolResult
 
 
-def tool_handler(_: Dict) -> ToolResult:
+def tool_handler() -> ToolResult:
+    """Basic workspace summary showing package info and top-level dirs/files."""
     root = Path.cwd()
     entries = list(root.iterdir())
     files = [entry.name for entry in entries if entry.is_file() and entry.name not in {".git", "node_modules"}]

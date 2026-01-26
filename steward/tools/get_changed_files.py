@@ -2,33 +2,14 @@
 from __future__ import annotations
 
 import subprocess
-from typing import Dict, List
+from typing import Dict, List, Optional
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import ensure_inside_workspace, normalize_path, rel_path
-
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "get_changed_files",
-    "description": "List git changes grouped by state (staged, unstaged, untracked, merge-conflicts).",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "repositoryPath": {
-                "type": "string",
-                "description": "Optional. Path to git repository. Defaults to current directory.",
-            },
-            "sourceControlState": {
-                "type": "array",
-                "items": {"type": "string", "enum": ["staged", "unstaged", "untracked", "merge-conflicts"]},
-                "description": "Optional. Filter by change states. Defaults to all states.",
-            },
-        },
-    },
-}
 
 
 def parse_status_lines(lines: List[str]) -> Dict[str, List[str]]:
-    buckets = {"staged": [], "unstaged": [], "untracked": [], "merge-conflicts": []}
+    buckets: Dict[str, List[str]] = {"staged": [], "unstaged": [], "untracked": [], "merge-conflicts": []}
     for raw in lines:
         line = raw.rstrip("\n")
         if not line or line.startswith("##"):
@@ -49,10 +30,17 @@ def parse_status_lines(lines: List[str]) -> Dict[str, List[str]]:
     return buckets
 
 
-def tool_handler(args: Dict) -> ToolResult:
-    repo_path_arg = args.get("repositoryPath") if isinstance(args.get("repositoryPath"), str) else "."
-    states = args.get("sourceControlState") if isinstance(args.get("sourceControlState"), list) else None
-    repo_path = normalize_path(repo_path_arg)
+def tool_handler(
+    repositoryPath: Optional[str] = None,
+    sourceControlState: Optional[List[str]] = None,
+) -> ToolResult:
+    """List git changes grouped by state (staged, unstaged, untracked, merge-conflicts).
+
+    Args:
+        repositoryPath: Path to git repository (default: current directory)
+        sourceControlState: Filter by change states (default: all states)
+    """
+    repo_path = normalize_path(repositoryPath) if repositoryPath else normalize_path(".")
     ensure_inside_workspace(repo_path, must_exist=True)
     if not (repo_path / ".git").exists():
         raise ValueError("Not a git repository")
@@ -67,7 +55,7 @@ def tool_handler(args: Dict) -> ToolResult:
     lines = proc.stdout.splitlines()
     buckets = parse_status_lines(lines)
 
-    desired = set(states) if states else set(buckets.keys())
+    desired = set(sourceControlState) if sourceControlState else set(buckets.keys())
     output_lines: List[str] = []
     for key in ("staged", "unstaged", "untracked", "merge-conflicts"):
         if key not in desired:

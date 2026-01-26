@@ -1,53 +1,37 @@
 """mcp_list_tools tool - list tools from an MCP server."""
 from __future__ import annotations
 
-from typing import Dict
-
 from ..mcp_client import list_tools, load_config
-from ..types import ToolDefinition, ToolResult
-
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "mcp_list_tools",
-    "description": "List available tools from an MCP server. Connects to the server if not already connected.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "server": {
-                "type": "string",
-                "description": "Name of the MCP server (as configured in mcp.json).",
-            },
-        },
-        "required": ["server"],
-    },
-}
+from ..types import ToolResult
 
 
-def tool_handler(args: Dict) -> ToolResult:
-    server_name = args.get("server")
-    if not isinstance(server_name, str):
-        raise ValueError("'server' must be a string")
+def tool_handler(server: str) -> ToolResult:
+    """List available tools from an MCP server. Connects to the server if not already connected.
 
+    Args:
+        server: Name of the MCP server as configured in mcp.json
+    """
     configs = load_config()
-    if server_name not in configs:
+    if server not in configs:
         available = ", ".join(configs.keys()) if configs else "(none configured)"
-        raise ValueError(f"Unknown server: {server_name}. Available: {available}")
+        raise ValueError(f"Unknown server: {server}. Available: {available}")
 
     try:
-        tools = list_tools(server_name)
+        tools = list_tools(server)
     except Exception as e:
         return {
             "id": "mcp_list_tools",
-            "output": f"Failed to connect to {server_name}: {e}",
+            "output": f"Failed to connect to {server}: {e}",
             "error": True,
         }
 
     if not tools:
         return {
             "id": "mcp_list_tools",
-            "output": f"Server '{server_name}' has no tools available.",
+            "output": f"Server '{server}' has no tools available.",
         }
 
-    lines = [f"Tools from '{server_name}' ({len(tools)} total):\n"]
+    lines = [f"Tools from '{server}' ({len(tools)} total):\n"]
 
     for tool in tools:
         name = tool.get("name", "unknown")

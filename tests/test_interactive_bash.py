@@ -40,59 +40,59 @@ def cleanup_sessions():
 def test_async_session_lifecycle():
     """Test creating, reading, and stopping an async session."""
     # Start async session
-    result = bash_handler({"command": "echo hello && sleep 0.5 && echo world", "mode": "async"})
+    result = bash_handler(command="echo hello && sleep 0.5 && echo world", mode="async")
     assert "sessionId" in result["output"]
     session_id = result["output"].split("sessionId: ")[1].split(")")[0]
 
     # List sessions
-    list_result = list_handler({})
+    list_result = list_handler()
     assert session_id in list_result["output"]
 
     # Read output (wait for completion)
-    read_result = read_handler({"sessionId": session_id, "delay": 2})
+    read_result = read_handler(sessionId=session_id, delay=2)
     assert "hello" in read_result["output"]
 
     # Stop session (should already be completed)
-    stop_result = stop_handler({"sessionId": session_id})
+    stop_result = stop_handler(sessionId=session_id)
     assert "completed" in stop_result["output"] or "terminated" in stop_result["output"]
 
 
 def test_read_nonexistent_session():
     """Test reading from a non-existent session."""
-    result = read_handler({"sessionId": "nonexistent"})
+    result = read_handler(sessionId="nonexistent")
     assert "not found" in result["output"]
 
 
 def test_stop_nonexistent_session():
     """Test stopping a non-existent session."""
-    result = stop_handler({"sessionId": "nonexistent"})
+    result = stop_handler(sessionId="nonexistent")
     assert "not found" in result["output"]
 
 
 def test_list_no_sessions():
     """Test listing when no sessions exist."""
-    result = list_handler({})
+    result = list_handler()
     assert "No active sessions" in result["output"]
 
 
 def test_write_to_session():
     """Test writing input to an async session."""
     # Start a cat process that echoes input
-    result = bash_handler({"command": "cat", "mode": "async"})
+    result = bash_handler(command="cat", mode="async")
     session_id = result["output"].split("sessionId: ")[1].split(")")[0]
 
     # Write to it
-    write_result = write_handler({"sessionId": session_id, "input": "test input\n", "delay": 1})
+    write_result = write_handler(sessionId=session_id, input="test input\n", delay=1)
     # Process may or may not have output yet, but shouldn't error
     assert "write_bash" == write_result["id"]
 
     # Stop it
-    stop_handler({"sessionId": session_id})
+    stop_handler(sessionId=session_id)
 
 
 def test_write_nonexistent_session():
     """Test writing to a non-existent session."""
-    result = write_handler({"sessionId": "nonexistent", "input": "test"})
+    result = write_handler(sessionId="nonexistent", input="test")
     assert "not found" in result["output"]
 
 
@@ -101,21 +101,3 @@ def test_expand_special_keys():
     assert _expand_special_keys("hello{enter}") == "hello\n"
     assert _expand_special_keys("{up}{down}") == "\x1b[A\x1b[B"
     assert _expand_special_keys("a{backspace}b") == "a\x7fb"
-
-
-def test_read_requires_session_id():
-    """Test that read_bash requires sessionId."""
-    with pytest.raises(ValueError, match="sessionId"):
-        read_handler({})
-
-
-def test_stop_requires_session_id():
-    """Test that stop_bash requires sessionId."""
-    with pytest.raises(ValueError, match="sessionId"):
-        stop_handler({})
-
-
-def test_write_requires_session_id():
-    """Test that write_bash requires sessionId."""
-    with pytest.raises(ValueError, match="sessionId"):
-        write_handler({})

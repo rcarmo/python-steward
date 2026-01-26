@@ -2,42 +2,32 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from ..skills import get_registry
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import rel_path
-
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "discover_skills",
-    "description": "Find all SKILL.md files in the workspace. Returns paths and metadata for skill definitions that can be loaded with load_skill.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "Directory to search in. Defaults to current directory.",
-            },
-        },
-    },
-}
 
 IGNORED_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", ".tox", "dist", "build"}
 
 
-def tool_handler(args: Dict) -> ToolResult:
-    raw_path = args.get("path") if isinstance(args.get("path"), str) else "."
-    root = Path.cwd() / raw_path
+def tool_handler(path: Optional[str] = None) -> ToolResult:
+    """Find all SKILL.md files in the workspace.
+
+    Args:
+        path: Directory to search in (default: current directory)
+    """
+    root = Path.cwd() / (path if path else ".")
 
     if not root.is_dir():
-        return {"id": "discover_skills", "output": f"Not a directory: {raw_path}"}
+        return {"id": "discover_skills", "output": f"Not a directory: {path or '.'}"}
 
     registry = get_registry()
     registry.discover(root)
 
     skills: List[Dict[str, str]] = []
     for skill in registry.all():
-        skill_info = {"path": skill.path or rel_path(root / "SKILL.md")}
+        skill_info: Dict[str, str] = {"path": skill.path or rel_path(root / "SKILL.md")}
         if skill.name:
             skill_info["name"] = skill.name
         if skill.description:

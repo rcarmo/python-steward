@@ -5,29 +5,10 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import List, Optional
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "install_python_packages",
-    "description": "Install Python packages via pip. REQUIRED: packageList (array of strings).",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "packageList": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "REQUIRED. List of package names to install (e.g., ['requests', 'numpy']).",
-            },
-            "resourcePath": {
-                "type": "string",
-                "description": "Optional. Working directory context.",
-            },
-        },
-        "required": ["packageList"],
-    },
-}
 
 def env_file() -> Path:
     return Path.cwd() / ".steward-env.json"
@@ -46,14 +27,18 @@ def _load_executable() -> str:
     return sys.executable
 
 
-def tool_handler(args: Dict) -> ToolResult:
-    packages = args.get("packageList") if isinstance(args.get("packageList"), list) else None
-    if not packages or not all(isinstance(p, str) for p in packages):
+def tool_handler(packageList: List[str], resourcePath: Optional[str] = None) -> ToolResult:
+    """Install Python packages via pip.
+
+    Args:
+        packageList: List of package names to install (e.g., ['requests', 'numpy'])
+        resourcePath: Working directory context
+    """
+    if not packageList or not all(isinstance(p, str) for p in packageList):
         raise ValueError("'packageList' must be an array of strings")
-    _ = args.get("resourcePath") if isinstance(args.get("resourcePath"), str) else None
 
     exe = _load_executable()
-    cmd: List[str] = [exe, "-m", "pip", "install", *packages]
+    cmd: List[str] = [exe, "-m", "pip", "install", *packageList]
     try:
         completed = subprocess.run(cmd, capture_output=True, text=True, check=True)
         output = completed.stdout.strip()

@@ -24,7 +24,7 @@ def mock_input():
 def test_ask_user_basic(mock_input):
     """Test basic ask_user functionality."""
     mock_input.append("yes")
-    result = tool_handler({"question": "Continue?"})
+    result = tool_handler(question="Continue?")
 
     assert result["id"] == "ask_user"
     data = json.loads(result["output"])
@@ -35,10 +35,10 @@ def test_ask_user_basic(mock_input):
 def test_ask_user_with_choices(mock_input):
     """Test ask_user with choices."""
     mock_input.append("Option A")
-    result = tool_handler({
-        "question": "Pick one",
-        "choices": ["Option A", "Option B", "Option C"],
-    })
+    result = tool_handler(
+        question="Pick one",
+        choices=["Option A", "Option B", "Option C"],
+    )
 
     data = json.loads(result["output"])
     assert data["response"] == "Option A"
@@ -48,26 +48,19 @@ def test_ask_user_with_choices(mock_input):
 def test_ask_user_requires_question():
     """Test that ask_user requires question."""
     with pytest.raises(ValueError, match="question"):
-        tool_handler({})
+        tool_handler(question="")
 
 
 def test_ask_user_requires_nonempty_question():
     """Test that ask_user requires non-empty question."""
     with pytest.raises(ValueError, match="question"):
-        tool_handler({"question": ""})
-
-
-def test_ask_user_invalid_choices(mock_input):
-    """Test that invalid choices raises error."""
-    mock_input.append("test")
-    with pytest.raises(ValueError, match="choices"):
-        tool_handler({"question": "Test?", "choices": "not a list"})
+        tool_handler(question="   ")
 
 
 def test_ask_user_strips_question(mock_input):
     """Test that question is stripped."""
     mock_input.append("answer")
-    result = tool_handler({"question": "  What?  "})
+    result = tool_handler(question="  What?  ")
 
     data = json.loads(result["output"])
     assert data["question"] == "What?"

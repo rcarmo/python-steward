@@ -2,36 +2,21 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict
 
-from ..types import ToolDefinition, ToolResult
+from ..types import ToolResult
 from .shared import ensure_inside_workspace
-
-TOOL_DEFINITION: ToolDefinition = {
-    "name": "update_todo",
-    "description": "Manage tasks with a markdown checklist. Use frequently to track progress, keeping all item statuses up to date. Call when starting complex problems, completing tasks, or when new tasks are identified.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "todos": {
-                "type": "string",
-                "description": "A markdown checklist of TODO items showing completed and pending tasks. Use '- [ ]' for pending and '- [x]' for completed items.",
-            },
-        },
-        "required": ["todos"],
-    },
-}
 
 
 def plan_file() -> Path:
     return Path.cwd() / ".steward-todo.md"
 
 
-def tool_handler(args: Dict) -> ToolResult:
-    todos = args.get("todos")
-    if not isinstance(todos, str):
-        raise ValueError("'todos' must be a string")
+def tool_handler(todos: str) -> ToolResult:
+    """Manage tasks with a markdown checklist. Use frequently to track progress.
 
+    Args:
+        todos: A markdown checklist using '- [ ]' and '- [x]' format
+    """
     plan_path = plan_file()
     ensure_inside_workspace(plan_path, must_exist=False)
 
