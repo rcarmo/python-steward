@@ -14,7 +14,7 @@ ENV_VARS := $(shell sed -n 's/^\([A-Za-z0-9_][A-Za-z0-9_]*\)=.*/\1/p' $(ENV_FILE
 export $(ENV_VARS)
 endif
 
-.PHONY: help install test clean scenario inception
+.PHONY: help install test lint clean scenario inception
 
 help: ## Show targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "%-16s %s\n", $$1, $$2}'
@@ -22,8 +22,11 @@ help: ## Show targets
 install: ## Install Python dependencies (editable)
 	$(PYTHON) -m pip install -e .
 
-test: ## Run pytest suite
-	$(PYTHON) -m pytest tests
+test: ## Run pytest suite with coverage
+	$(PYTHON) -m pytest -q
+
+lint: ## Run ruff lint
+	ruff check .
 
 scenario: ## Run a sample steward scenario (list workspace files)
 	@echo "== Steward scenario: list workspace files =="

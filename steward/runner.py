@@ -9,7 +9,7 @@ from .llm import build_client
 from .logger import HumanEntry, Logger
 from .system_prompt import build_system_prompt
 from .tools import discover_tools
-from .types import LLMClient, LLMResult, Message, ToolCallDescriptor, ToolDefinition
+from .types import LLMClient, LLMResult, Message, StreamHandler, ToolCallDescriptor, ToolDefinition
 from .utils import safe_json
 
 
@@ -31,6 +31,7 @@ class RunnerOptions:
     custom_instructions: Optional[str] = None
     conversation_history: Optional[List[Message]] = None  # For multi-turn conversations
     max_history_tokens: Optional[int] = None  # Token limit for conversation history
+    stream_handler: Optional[StreamHandler] = None
 
 
 @dataclass
@@ -133,6 +134,7 @@ def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
                 retry_limit=retry_limit,
                 logger=logger,
                 tools=tool_definitions,
+                stream_handler=options.stream_handler,
             )
         except Exception as err:  # noqa: BLE001
             message = str(err)
@@ -155,7 +157,7 @@ def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
         if tool_calls:
             content = (response.get("content") or "").strip()
             thought = format_tool_calls(tool_calls) if content in {"model"} or (content and "args=" in content) else content
-            if thought:
+            if thought and not options.stream_handler:
                 logger.human(HumanEntry(title="model", body=thought, variant="model"))
             logger.human(
                 HumanEntry(
@@ -207,7 +209,8 @@ def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
             continue
 
         if response.get("content"):
-            logger.human(HumanEntry(title="model", body=response.get("content"), variant="model"))
+            if not options.stream_handler:
+                logger.human(HumanEntry(title="model", body=response.get("content"), variant="model"))
             messages.append({"role": "assistant", "content": response.get("content")})
             return RunnerResult(response=response.get("content"), messages=messages)
 
@@ -222,6 +225,7 @@ def call_model_with_policies(
     retry_limit: int,
     logger: Logger,
     tools: List[ToolDefinition],
+    stream_handler: Optional[StreamHandler] = None,
 ) -> LLMResult:
     stop_spinner = logger.start_spinner()
     try:
@@ -229,7 +233,7 @@ def call_model_with_policies(
         last_error: Optional[Exception] = None
         for attempt in range(1, attempts + 1):
             try:
-                result = client.generate(messages, tools)
+                result = client.generate(messages, tools, stream_handler=stream_handler)
                 if attempt > 1:
                     logger.human(HumanEntry(title="model", body=f"retry {attempt} succeeded", variant="model"))
                     logger.json({"type": "model_retry_success", "attempt": attempt})

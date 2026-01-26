@@ -39,9 +39,16 @@ class LLMResult(TypedDict, total=False):
     content: Optional[str]
     toolCalls: Optional[List[ToolCallDescriptor]]
 
+StreamHandler = Callable[[str, bool], None]
+
 
 class LLMClient(Protocol):
-    def generate(self, messages: List[Message], tools: Optional[List[ToolDefinition]] = None) -> LLMResult:
+    def generate(
+        self,
+        messages: List[Message],
+        tools: Optional[List[ToolDefinition]] = None,
+        stream_handler: Optional[StreamHandler] = None,
+    ) -> LLMResult:
         ...
 
 

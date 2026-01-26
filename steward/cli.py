@@ -63,8 +63,9 @@ def parse_args() -> Union[RunnerOptions, dict]:
     if parsed.session:
         session_id = parsed.session if parsed.session != "auto" else generate_session_id()
 
-    # REPL mode
-    if parsed.repl:
+    # REPL mode (default when no prompt provided)
+    prompt_text = " ".join(parsed.prompt).strip()
+    if parsed.repl or not prompt_text:
         return {
             "repl": True,
             "provider": parsed.provider,
@@ -80,11 +81,6 @@ def parse_args() -> Union[RunnerOptions, dict]:
             "pretty": parsed.pretty,
             "session_id": session_id,
         }
-
-    # Single-run mode requires a prompt
-    prompt_text = " ".join(parsed.prompt).strip()
-    if not prompt_text:
-        parser.error("Prompt is required (or use --repl for interactive mode)")
 
     return RunnerOptions(
         prompt=prompt_text,

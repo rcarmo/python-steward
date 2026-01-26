@@ -176,6 +176,7 @@ def test_run_repl_executes_prompt(mock_run_steward):
     assert mock_run_steward.called
     call_args = mock_run_steward.call_args[0][0]
     assert call_args.prompt == 'hello world'
+    assert callable(call_args.stream_handler)
 
 
 @patch('steward.repl.run_steward_with_history')
@@ -208,6 +209,28 @@ def test_run_repl_banner_shown():
     output = stdout.getvalue()
     assert 'Steward REPL' in output
     assert 'Commands:' in output
+
+
+def test_run_repl_streams_markdown():
+    from steward.repl import run_repl
+    from steward.runner import RunnerResult
+
+    inputs = iter(['stream test', 'exit'])
+    with patch('steward.repl.setup_readline'):
+        with patch('builtins.input', side_effect=lambda _: next(inputs)):
+            with patch('steward.repl.run_steward_with_history') as mock_run:
+                def fake_run(opts):
+                    opts.stream_handler("**Hello", False)
+                    opts.stream_handler(" World**", True)
+                    return RunnerResult(response="**Hello World**", messages=[])
+                mock_run.side_effect = fake_run
+                with patch('steward.repl.Live') as mock_live:
+                    with patch('steward.repl.Markdown'):
+                        with patch('sys.stdout', new_callable=StringIO):
+                            run_repl(quiet=False, pretty=True)
+                assert mock_live.return_value.start.called
+                assert mock_live.return_value.update.called
+                assert mock_live.return_value.stop.called
 
 
 def test_main_function():

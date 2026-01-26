@@ -7,6 +7,10 @@ from pathlib import Path
 from sys import stderr, stdout
 from typing import List, Optional
 
+from rich.console import Console
+from rich.live import Live
+from rich.markdown import Markdown
+
 from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, detect_provider, ensure_dotenv_loaded
 from .runner import RunnerOptions, run_steward_with_history
 from .session import generate_session_id
@@ -167,6 +171,27 @@ def run_repl(
                     print(f"{idx}: {readline.get_history_item(idx)}")
             continue
 
+        stream_console: Optional[Console] = None
+        stream_live: Optional[Live] = None
+        stream_buffer = ""
+
+        def stream_handler(chunk: str, done: bool) -> None:
+            nonlocal stream_console, stream_live, stream_buffer
+            if quiet:
+                return
+            if not pretty:
+                print(chunk, end="", flush=True)
+                return
+            if stream_console is None:
+                stream_console = Console()
+                stream_live = Live(Markdown(""), console=stream_console, refresh_per_second=8)
+                stream_live.start()
+            if chunk:
+                stream_buffer += chunk
+                stream_live.update(Markdown(stream_buffer))
+            if done and stream_live:
+                stream_live.stop()
+
         # Run steward with the prompt
         options = RunnerOptions(
             prompt=prompt_text,
@@ -184,10 +209,15 @@ def run_repl(
             session_id=session_id,
             custom_instructions=custom_instructions,
             conversation_history=conversation_history,
+            stream_handler=stream_handler,
         )
 
         try:
             result = run_steward_with_history(options)
+            if pretty and not quiet and stream_live:
+                stream_live.stop()
+            if not pretty and not quiet:
+                print("")
             # Update conversation history for next turn
             conversation_history = result.messages
         except Exception as err:

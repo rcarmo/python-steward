@@ -6,16 +6,23 @@ from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
 
-from .types import LLMClient, LLMResult, Message, ToolCallDescriptor, ToolDefinition
+from .types import LLMClient, LLMResult, Message, StreamHandler, ToolCallDescriptor, ToolDefinition
 
 
 class EchoClient:
     def __init__(self, model: str) -> None:
         self.model = model
 
-    def generate(self, messages: List[Message], tools: Optional[List[ToolDefinition]] = None) -> LLMResult:  # noqa: ARG002
+    def generate(
+        self,
+        messages: List[Message],
+        tools: Optional[List[ToolDefinition]] = None,
+        stream_handler: Optional[StreamHandler] = None,
+    ) -> LLMResult:  # noqa: ARG002
         last_user = next((msg for msg in reversed(messages) if msg.get("role") == "user"), None)
         content = f"Echo: {last_user.get('content', '')}" if last_user else "Echo"
+        if stream_handler:
+            stream_handler(content, True)
         return {"content": content}
 
 
@@ -27,7 +34,33 @@ class OpenAIClient:
         timeout = timeout_ms / 1000.0 if timeout_ms else None
         self.client = OpenAI(api_key=api_key, base_url=base_url, default_query=default_query, timeout=timeout)
 
-    def generate(self, messages: List[Message], tools: Optional[List[ToolDefinition]] = None) -> LLMResult:
+    def generate(
+        self,
+        messages: List[Message],
+        tools: Optional[List[ToolDefinition]] = None,
+        stream_handler: Optional[StreamHandler] = None,
+    ) -> LLMResult:
+        if stream_handler:
+            stream = self.client.chat.completions.create(
+                model=self.model,
+                messages=_to_openai_messages(messages),
+                tools=[_to_openai_tool(tool) for tool in tools] if tools else None,
+                tool_choice="auto" if tools else None,
+                stream=True,
+            )
+            content_parts: List[str] = []
+            tool_calls: Optional[List[ToolCallDescriptor]] = None
+            for event in stream:
+                choice = event.choices[0]
+                delta = choice.delta
+                if delta.content:
+                    content_parts.append(delta.content)
+                    stream_handler(delta.content, False)
+                if getattr(delta, "tool_calls", None):
+                    tool_calls = _to_tool_calls(delta.tool_calls)
+            final_content = "".join(content_parts) if content_parts else None
+            stream_handler("", True)
+            return {"content": final_content, "toolCalls": tool_calls}
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=_to_openai_messages(messages),

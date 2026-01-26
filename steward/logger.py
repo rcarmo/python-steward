@@ -84,13 +84,10 @@ class Logger:
         # For model responses, show abbreviated content
         if variant == "model":
             if body:
-                # Truncate long model output
-                short = body[:200] + "..." if len(body) > 200 else body
-                short = short.replace("\n", " ").strip()
                 if self.console:
-                    self.console.print(f"  {icon} {short}", style=style)
+                    self.console.print(f"  {icon} {body}", style=style)
                 else:
-                    print(f"  {icon} {short}")
+                    print(f"  {icon} {body}")
             return
 
         # For tools, show just the action
