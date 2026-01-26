@@ -9,13 +9,13 @@ from .shared import ensure_inside_workspace, env_cap, normalize_path, rel_path
 
 TOOL_DEFINITION: ToolDefinition = {
     "name": "view",
-    "description": "View file contents or directory listing. REQUIRED: path (string).",
+    "description": "View file contents or directory listing.",
     "parameters": {
         "type": "object",
         "properties": {
             "path": {
                 "type": "string",
-                "description": "REQUIRED. Path to file or directory to view. Must be a non-empty string.",
+                "description": "Path to file or directory. Defaults to current directory if not provided.",
             },
             "view_range": {
                 "type": "array",
@@ -23,7 +23,6 @@ TOOL_DEFINITION: ToolDefinition = {
                 "description": "Optional [start_line, end_line] range for files. Use [start, -1] to view from start to end.",
             },
         },
-        "required": ["path"],
     },
 }
 
@@ -60,8 +59,8 @@ def list_directory(dir_path: Path, max_depth: int = 2) -> List[str]:
 
 def tool_handler(args: Dict) -> ToolResult:
     raw_path = args.get("path")
-    if not isinstance(raw_path, str):
-        raise ValueError("'path' must be a string")
+    if not raw_path or not isinstance(raw_path, str):
+        raw_path = "."  # Default to current directory
 
     abs_path = normalize_path(raw_path)
     ensure_inside_workspace(abs_path)
