@@ -84,6 +84,15 @@ def parse_frontmatter(content: str) -> tuple[Dict[str, str | List[str]], str]:
     return frontmatter, remaining
 
 
+def _parse_list_field(value: object) -> List[str]:
+    """Parse a frontmatter field into a list of non-empty strings."""
+    if isinstance(value, str):
+        return [item.strip() for item in value.split(",") if item.strip()]
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if item is not None and str(item).strip()]
+    return []
+
+
 def parse_skill(content: str, path: str = "") -> SkillMetadata:
     """Parse SKILL.md and return structured metadata."""
     frontmatter, body = parse_frontmatter(content)
@@ -111,19 +120,14 @@ def parse_skill(content: str, path: str = "") -> SkillMetadata:
             if stripped and not stripped.startswith("#"):
                 description = stripped[:500]
                 break
+    # Ensure description is always a string
+    if description is None:
+        description = ""
 
-    # Parse list fields
-    triggers = frontmatter.get("triggers", [])
-    if isinstance(triggers, str):
-        triggers = [t.strip() for t in triggers.split(",") if t.strip()]
-
-    requires = frontmatter.get("requires", [])
-    if isinstance(requires, str):
-        requires = [r.strip() for r in requires.split(",") if r.strip()]
-
-    chain = frontmatter.get("chain", [])
-    if isinstance(chain, str):
-        chain = [c.strip() for c in chain.split(",") if c.strip()]
+    # Parse list fields (safely handles None values and non-list types)
+    triggers = _parse_list_field(frontmatter.get("triggers", []))
+    requires = _parse_list_field(frontmatter.get("requires", []))
+    chain = _parse_list_field(frontmatter.get("chain", []))
 
     license_val = frontmatter.get("license")
     if not isinstance(license_val, str):
