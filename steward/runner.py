@@ -229,7 +229,8 @@ def call_model_with_policies(
     tools: List[ToolDefinition],
     stream_handler: Optional[StreamHandler] = None,
 ) -> LLMResult:
-    stop_spinner = logger.start_spinner()
+    # Only show spinner if not streaming (streaming has its own UI)
+    stop_spinner = logger.start_spinner() if not stream_handler else lambda: None
     try:
         attempts = max(0, retry_limit) + 1
         last_error: Optional[Exception] = None
