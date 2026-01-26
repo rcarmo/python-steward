@@ -9,6 +9,12 @@ Steward is a Python CLI harness for running LLMs with a Copilot-style toolset. I
 1) Install:
 
 ```bash
+# From GitHub
+pip install git+https://github.com/rcarmo/python-steward.git
+
+# Or clone and install locally (editable)
+git clone https://github.com/rcarmo/python-steward.git
+cd python-steward
 python3 -m pip install -e .
 ```
 
