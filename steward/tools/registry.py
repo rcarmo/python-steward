@@ -119,13 +119,20 @@ def _create_wrapper(handler: Callable) -> ToolHandler:
         return handler
 
     def wrapper(args: Dict) -> Any:
+        if args is None:
+            args = {}
         kwargs = {}
+        missing = []
         for name, param in params:
             if name in args:
                 kwargs[name] = args[name]
             elif param.default != inspect.Parameter.empty:
                 kwargs[name] = param.default
-            # Skip missing optional params (they'll use function defaults)
+            else:
+                # Required parameter is missing
+                missing.append(name)
+        if missing:
+            raise ValueError(f"'{', '.join(missing)}' {'is' if len(missing) == 1 else 'are'} required and must be provided")
         return handler(**kwargs)
 
     return wrapper
