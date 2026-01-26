@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from ..types import ToolDefinition, ToolResult
@@ -29,11 +29,14 @@ class SkillMetadata:
     name: str
     description: str
     license: Optional[str] = None
+    triggers: List[str] = field(default_factory=list)
+    requires: List[str] = field(default_factory=list)
+    chain: List[str] = field(default_factory=list)
     body: str = ""
     path: str = ""
 
 
-def parse_frontmatter(content: str) -> tuple[Dict[str, str], str]:
+def parse_frontmatter(content: str) -> tuple[Dict[str, str | List[str]], str]:
     """Parse YAML frontmatter from content. Returns (frontmatter_dict, remaining_content)."""
     if not content.startswith("---"):
         return {}, content
@@ -46,12 +49,37 @@ def parse_frontmatter(content: str) -> tuple[Dict[str, str], str]:
     frontmatter_text = content[3:end_match.start() + 3]
     remaining = content[end_match.end() + 3:]
 
-    # Simple YAML parsing (key: value pairs)
-    frontmatter: Dict[str, str] = {}
+    # Simple YAML parsing (key: value pairs and lists)
+    frontmatter: Dict[str, str | List[str]] = {}
+    current_key: Optional[str] = None
+    current_list: List[str] = []
+
     for line in frontmatter_text.strip().split("\n"):
+        # Check for list item
+        if line.strip().startswith("- ") and current_key:
+            current_list.append(line.strip()[2:].strip())
+            continue
+
+        # If we were building a list, save it
+        if current_list and current_key:
+            frontmatter[current_key] = current_list
+            current_list = []
+            current_key = None
+
+        # Check for key: value
         if ":" in line:
             key, _, value = line.partition(":")
-            frontmatter[key.strip()] = value.strip()
+            key = key.strip()
+            value = value.strip()
+            if value:
+                frontmatter[key] = value
+            else:
+                # Start of a list
+                current_key = key
+
+    # Save any remaining list
+    if current_list and current_key:
+        frontmatter[current_key] = current_list
 
     return frontmatter, remaining
 
@@ -62,7 +90,8 @@ def parse_skill(content: str, path: str = "") -> SkillMetadata:
 
     # Get name from frontmatter or first heading
     name = frontmatter.get("name", "")
-    if not name:
+    if not name or not isinstance(name, str):
+        name = ""
         for line in body.split("\n"):
             if line.startswith("# "):
                 name = line[2:].strip()
@@ -72,22 +101,41 @@ def parse_skill(content: str, path: str = "") -> SkillMetadata:
 
     # Get description from frontmatter or first paragraph
     description = frontmatter.get("description", "")
-    if not description:
+    if not description or not isinstance(description, str):
+        description = ""
         lines = body.strip().split("\n")
-        for i, line in enumerate(lines):
-            # Skip title line
+        for line in lines:
             if line.startswith("# "):
                 continue
-            # First non-empty, non-heading line is description
             stripped = line.strip()
             if stripped and not stripped.startswith("#"):
                 description = stripped[:500]
                 break
 
+    # Parse list fields
+    triggers = frontmatter.get("triggers", [])
+    if isinstance(triggers, str):
+        triggers = [t.strip() for t in triggers.split(",") if t.strip()]
+
+    requires = frontmatter.get("requires", [])
+    if isinstance(requires, str):
+        requires = [r.strip() for r in requires.split(",") if r.strip()]
+
+    chain = frontmatter.get("chain", [])
+    if isinstance(chain, str):
+        chain = [c.strip() for c in chain.split(",") if c.strip()]
+
+    license_val = frontmatter.get("license")
+    if not isinstance(license_val, str):
+        license_val = None
+
     return SkillMetadata(
         name=name,
         description=description,
-        license=frontmatter.get("license"),
+        license=license_val,
+        triggers=triggers,
+        requires=requires,
+        chain=chain,
         body=body.strip(),
         path=path,
     )
@@ -100,8 +148,18 @@ def format_skill_output(skill: SkillMetadata) -> str:
     if skill.description:
         lines.append(f"\n{skill.description}")
 
+    # Metadata section
+    meta_parts = []
     if skill.license:
-        lines.append(f"\n**License:** {skill.license}")
+        meta_parts.append(f"**License:** {skill.license}")
+    if skill.triggers:
+        meta_parts.append(f"**Triggers:** {', '.join(skill.triggers)}")
+    if skill.requires:
+        meta_parts.append(f"**Requires:** {', '.join(skill.requires)}")
+    if skill.chain:
+        meta_parts.append(f"**Chain:** {', '.join(skill.chain)}")
+    if meta_parts:
+        lines.append("\n" + " | ".join(meta_parts))
 
     # Extract key sections from body
     sections = extract_sections(skill.body)

@@ -38,6 +38,7 @@ def build_system_prompt(
     custom_instructions: Optional[str] = None,
     session_context: Optional[str] = None,
     plan_mode: bool = False,
+    skill_context: Optional[str] = None,
 ) -> str:
     """Build comprehensive system prompt aligned with Copilot CLI."""
     tools_list = ", ".join(tool_names)
@@ -53,6 +54,9 @@ def build_system_prompt(
         _task_completion_section(),
         env_context,
     ]
+
+    if skill_context:
+        sections.append(skill_context)
 
     if session_context:
         sections.append(session_context)
@@ -229,7 +233,9 @@ def _tips_section() -> str:
 * Clean up temporary files at end of task
 * Use view/edit for existing files (not create - avoid data loss)
 * Use ask_user for clarification if uncertain
-* On wake-up, check for SKILL.md files (discover_skills) and pending todos (update_todo)
+* Check <skills> section for relevant skills; use load_skill to read instructions
+* After completing a skill, check its chain for follow-up skills
+* Use suggest_skills to find skills matching a specific task
 </tips>"""
 
 

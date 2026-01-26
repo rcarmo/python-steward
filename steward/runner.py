@@ -35,6 +35,7 @@ PLAN_MODE_PREFIX = "[[PLAN]]"
 
 def run_steward(options: RunnerOptions) -> Optional[str]:
     from .session import get_session_context, init_session
+    from .skills import get_registry
 
     tool_definitions, tool_handlers = discover_tools()
     provider = options.provider or detect_provider()
@@ -49,6 +50,13 @@ def run_steward(options: RunnerOptions) -> Optional[str]:
         pretty=options.pretty_logs,
     )
 
+    # Auto-discover skills at startup
+    registry = get_registry()
+    if not registry.is_discovered:
+        skill_count = registry.discover()
+        if skill_count > 0:
+            logger.human(HumanEntry(title="skills", body=f"Discovered {skill_count} skill(s)", variant="tool"))
+
     # Detect plan mode from prompt prefix
     prompt = options.prompt
     plan_mode = prompt.startswith(PLAN_MODE_PREFIX)
@@ -61,6 +69,9 @@ def run_steward(options: RunnerOptions) -> Optional[str]:
         init_session(options.session_id)
         session_context = get_session_context(options.session_id)
 
+    # Build skill context for system prompt
+    skill_context = _build_skill_context(registry, prompt)
+
     messages: List[Message] = []
     if options.system_prompt:
         system_text = options.system_prompt
@@ -70,6 +81,7 @@ def run_steward(options: RunnerOptions) -> Optional[str]:
             custom_instructions=options.custom_instructions,
             session_context=session_context,
             plan_mode=plan_mode,
+            skill_context=skill_context,
         )
     messages.append({"role": "system", "content": system_text})
     messages.append({"role": "user", "content": prompt})
@@ -230,3 +242,32 @@ def synthesize_meta_tool(client: LLMClient, result: dict, logger: Logger) -> str
         return f"[synthesis error] {err}\n\nRaw context:\n{result.get('meta_context', '')}"
     finally:
         stop_spinner()
+
+
+def _build_skill_context(registry: "SkillRegistry", prompt: str) -> Optional[str]:  # noqa: F821
+    """Build skill context for system prompt based on discovered skills and prompt matching."""
+    if not registry.is_discovered or not registry.all():
+        return None
+
+    # Get top matching skills for the prompt
+    matches = registry.match(prompt, limit=3)
+
+    lines = ["<skills>"]
+    lines.append(f"Discovered {len(registry.all())} skill(s) in workspace.")
+
+    if matches:
+        lines.append("\nRelevant skills for this task:")
+        for skill, score in matches:
+            lines.append(f"- **{skill.name}** ({skill.path}): {skill.description[:100]}")
+            if skill.requires:
+                lines.append(f"  Requires: {', '.join(skill.requires)}")
+            if skill.chain:
+                lines.append(f"  Chains to: {', '.join(skill.chain)}")
+
+        lines.append("\nUse load_skill to read full instructions before starting.")
+        lines.append("After completing a skill, check its 'chain' for follow-up skills.")
+    else:
+        lines.append("Use suggest_skills or discover_skills to find relevant skills.")
+
+    lines.append("</skills>")
+    return "\n".join(lines)
