@@ -49,7 +49,8 @@ class OpenAIClient:
                 stream=True,
             )
             content_parts: List[str] = []
-            tool_calls: Optional[List[ToolCallDescriptor]] = None
+            # Accumulate tool calls: {index: {id, name, arguments_parts}}
+            tool_call_accum: Dict[int, Dict[str, Any]] = {}
             for event in stream:
                 choices = getattr(event, "choices", None) or []
                 if not choices:
@@ -62,11 +63,36 @@ class OpenAIClient:
                 if content:
                     content_parts.append(content)
                     stream_handler(content, False)
-                if getattr(delta, "tool_calls", None):
-                    tool_calls = _to_tool_calls(delta.tool_calls) or tool_calls
+                # Accumulate tool call chunks
+                delta_tool_calls = getattr(delta, "tool_calls", None)
+                if delta_tool_calls:
+                    for tc in delta_tool_calls:
+                        idx = getattr(tc, "index", 0)
+                        if idx not in tool_call_accum:
+                            tool_call_accum[idx] = {"id": "", "name": "", "arguments": ""}
+                        if getattr(tc, "id", None):
+                            tool_call_accum[idx]["id"] = tc.id
+                        func = getattr(tc, "function", None)
+                        if func:
+                            if getattr(func, "name", None):
+                                tool_call_accum[idx]["name"] = func.name
+                            if getattr(func, "arguments", None):
+                                tool_call_accum[idx]["arguments"] += func.arguments
             final_content = "".join(content_parts) if content_parts else None
             stream_handler("", True)
-            return {"content": final_content, "toolCalls": tool_calls}
+            # Build final tool calls from accumulated data
+            tool_calls: Optional[List[ToolCallDescriptor]] = None
+            if tool_call_accum:
+                tool_calls = []
+                for idx in sorted(tool_call_accum.keys()):
+                    tc = tool_call_accum[idx]
+                    if tc["id"] and tc["name"]:
+                        try:
+                            args = json.loads(tc["arguments"]) if tc["arguments"] else {}
+                        except (TypeError, ValueError):
+                            args = {}
+                        tool_calls.append({"id": tc["id"], "name": tc["name"], "arguments": args})
+            return {"content": final_content, "toolCalls": tool_calls if tool_calls else None}
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=_to_openai_messages(messages),
