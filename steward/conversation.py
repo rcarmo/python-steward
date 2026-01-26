@@ -192,7 +192,7 @@ def _group_messages(messages: List[Message]) -> List[List[Message]]:
     while i < len(messages):
         msg = messages[i]
         if msg.get("role") == "assistant" and msg.get("tool_calls"):
-            tool_call_ids = {call.get("id") for call in msg.get("tool_calls", [])}
+            tool_call_ids = {call.get("id") for call in msg.get("tool_calls", []) if call.get("id")}
             group = [msg]
             i += 1
             while i < len(messages):

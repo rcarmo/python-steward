@@ -104,18 +104,21 @@ def _to_openai_messages(messages: List[Message]) -> List[Dict[str, Any]]:
     converted: List[Dict[str, Any]] = []
     for msg in messages:
         if msg.get("role") == "assistant" and msg.get("tool_calls"):
+            # Filter out invalid tool calls (missing id or name)
+            valid_calls = [
+                {
+                    "id": call["id"] or "",
+                    "type": "function",
+                    "function": {"name": call["name"], "arguments": json.dumps(call["arguments"])}
+                }
+                for call in msg.get("tool_calls", [])
+                if call.get("id") and call.get("name")
+            ]
             converted.append(
                 {
                     "role": "assistant",
                     "content": msg.get("content") or "",
-                    "tool_calls": [
-                        {
-                            "id": call["id"],
-                            "type": "function",
-                            "function": {"name": call["name"], "arguments": json.dumps(call["arguments"])}
-                        }
-                        for call in msg.get("tool_calls", [])
-                    ],
+                    "tool_calls": valid_calls,
                 }
             )
         elif msg.get("role") == "tool":

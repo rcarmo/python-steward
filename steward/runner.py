@@ -194,7 +194,7 @@ def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
                             "error": result.get("error") is True,
                         }
                     )
-                    messages.append({"role": "tool", "content": result.get("output"), "tool_call_id": call["id"]})
+                    messages.append({"role": "tool", "content": result.get("output") or "", "tool_call_id": call["id"]})
                 except Exception as err:  # noqa: BLE001
                     error_msg = str(err)
                     logger.human(HumanEntry(title=call["name"], body=f"error: {error_msg}", variant="error"))
@@ -301,7 +301,8 @@ def _build_skill_context(registry: "SkillRegistry", prompt: str) -> Optional[str
     if matches:
         lines.append("\nRelevant skills for this task:")
         for skill, score in matches:
-            lines.append(f"- **{skill.name}** ({skill.path}): {skill.description[:100]}")
+            desc = (skill.description or "")[:100]
+            lines.append(f"- **{skill.name}** ({skill.path}): {desc}")
             if skill.requires:
                 lines.append(f"  Requires: {', '.join(skill.requires)}")
             if skill.chain:

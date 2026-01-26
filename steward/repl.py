@@ -95,7 +95,7 @@ def run_repl(
     system_prompt: Optional[str] = None,
     custom_instructions: Optional[str] = None,
     log_json_path: Optional[str] = None,
-    enable_file_logs: bool = False,
+    enable_file_logs: bool = True,
     quiet: bool = False,
     pretty: bool = True,
     session_id: Optional[str] = None,

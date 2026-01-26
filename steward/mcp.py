@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import sys
+from importlib.metadata import version as pkg_version
 from typing import Any, Dict, List, Optional
 
 from .tools import discover_tools
@@ -10,6 +11,13 @@ from .types import ToolDefinition
 
 # MCP Protocol version
 PROTOCOL_VERSION = "2024-11-05"
+
+def _get_version() -> str:
+    """Get package version, with fallback."""
+    try:
+        return pkg_version("steward")
+    except Exception:
+        return "0.0.0"
 
 
 def main() -> None:
@@ -81,7 +89,7 @@ class MCPServer:
             },
             "serverInfo": {
                 "name": "steward",
-                "version": "0.1.0",
+                "version": _get_version(),
             },
         })
 

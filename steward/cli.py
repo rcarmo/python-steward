@@ -40,11 +40,10 @@ def parse_args() -> Union[RunnerOptions, dict]:
     parsed = parser.parse_args()
 
     # Handle sandbox before anything else
-    sandbox = None
     if parsed.sandbox:
-        sandbox = Path(parsed.sandbox).resolve()
-        sandbox.mkdir(parents=True, exist_ok=True)
-        chdir(sandbox)
+        sandbox_path = Path(parsed.sandbox).resolve()
+        sandbox_path.mkdir(parents=True, exist_ok=True)
+        chdir(sandbox_path)
 
     # Load system prompt if specified
     system_prompt: Optional[str] = None
