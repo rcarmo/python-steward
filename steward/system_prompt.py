@@ -198,7 +198,15 @@ def _task_completion_section() -> str:
 * After config changes (package.json, requirements.txt), run install commands
 * After starting background processes, verify they are running
 * If an approach fails, try alternatives before concluding impossible
-</task_completion>"""
+</task_completion>
+
+<error_handling>
+When tools fail:
+1. Read the error message carefully
+2. Try to understand what went wrong
+3. Attempt an alternative approach or fix the issue
+4. If you cannot fix it, explain to the user what happened
+</error_handling>"""
 
 
 def _custom_instructions_section(instructions: str) -> str:
