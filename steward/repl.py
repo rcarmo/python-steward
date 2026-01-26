@@ -184,11 +184,11 @@ def run_repl(
                 return
             if stream_console is None:
                 stream_console = Console()
-                stream_live = Live(Markdown(""), console=stream_console, refresh_per_second=8)
+                stream_live = Live(Markdown("", justify="left"), console=stream_console, refresh_per_second=8)
                 stream_live.start()
             if chunk:
                 stream_buffer += chunk
-                stream_live.update(Markdown(stream_buffer))
+                stream_live.update(Markdown(stream_buffer, justify="left"))
             if done and stream_live:
                 stream_live.stop()
 

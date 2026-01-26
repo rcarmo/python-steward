@@ -10,6 +10,18 @@ from typing import Any, Dict, Optional
 from rich.console import Console
 from rich.theme import Theme
 
+# Tools whose output should persist on screen (not transient)
+PERSISTENT_TOOLS = {
+    "report_intent",  # Intent should always be visible
+    "create",         # File creation
+    "edit",           # File editing
+    "replace_string_in_file",
+    "multi_replace_string_in_file",
+    "apply_patch",
+    "git_commit",     # Important git operations
+    "git_stash",
+}
+
 
 @dataclass
 class HumanEntry:
@@ -37,6 +49,7 @@ class Logger:
         self.pretty = pretty
         self.compact = compact
         self.console = Console(theme=_theme(), highlight=False) if pretty else None
+        self._last_transient_lines = 0  # Track transient output for clearing
 
     def start_spinner(self):
         if not self.pretty or not self.enable_human_logs:
@@ -46,6 +59,14 @@ class Logger:
             status.start()
             return status.stop
         return lambda: None
+
+    def _clear_transient(self) -> None:
+        """Clear previous transient output."""
+        if self._last_transient_lines > 0 and self.console:
+            # Move up and clear each transient line
+            for _ in range(self._last_transient_lines):
+                self.console.print("\033[A\033[2K", end="")
+            self._last_transient_lines = 0
 
     def human(self, entry: HumanEntry) -> None:
         if not self.enable_human_logs:
@@ -62,13 +83,19 @@ class Logger:
             print(f"{title}: {body}")
 
     def _human_compact(self, title: str, body: str, variant: str) -> None:
-        """Compact single-line logging for REPL mode."""
+        """Compact single-line logging for REPL mode.
+
+        Persistent output: intents, file operations, errors stay on screen.
+        Transient output: other tool calls appear briefly then get cleared.
+        """
         icon = {
             "error": "✗",
             "warn": "⚠",
             "todo": "☐",
             "model": "→",
             "tool": "•",
+            "intent": "◈",
+            "file": "✎",
         }.get(variant, "·")
 
         style = {
@@ -76,31 +103,53 @@ class Logger:
             "warn": "yellow",
             "todo": "magenta",
             "model": "cyan",
-            "tool": "green dim",
+            "tool": "dim",
+            "intent": "blue bold",
+            "file": "green",
         }.get(variant, "dim")
 
-        # For model responses, show abbreviated content
+        # Determine if this output should persist or be transient
+        is_persistent = (
+            variant in ("error", "warn", "intent", "file") or
+            title in PERSISTENT_TOOLS
+        )
+
+        # Clear previous transient output before printing persistent
+        if is_persistent:
+            self._clear_transient()
+
+        # For model step indicators, these are transient
         if variant == "model":
             if body:
+                # Clear previous transient, print new transient
+                self._clear_transient()
                 if self.console:
                     self.console.print(f"  {icon} {body}", style=style)
                 else:
                     print(f"  {icon} {body}")
+                self._last_transient_lines = 1
             return
 
-        # For tools, show just the action
-        if variant == "tool":
-            # Only show tool name and brief summary
-            short = body[:100].replace("\n", " ").strip() if body else ""
-            if "=" in short:
-                short = short.split("=")[0] + "=..."
+        # Intent is always persistent and prominent
+        if title == "report_intent":
             if self.console:
-                self.console.print(f"  {icon} {title} {short}", style=style)
+                # Extract just the intent text if it starts with "Intent: "
+                intent_text = body.replace("Intent: ", "") if body.startswith("Intent: ") else body
+                self.console.print(f"  ◈ {intent_text}", style="blue bold")
             else:
-                print(f"  {icon} {title} {short}")
+                print(f"  ◈ {body}")
             return
 
-        # For errors/warnings, show full message
+        # File operations are persistent
+        if title in PERSISTENT_TOOLS:
+            short = body[:100].replace("\n", " ").strip() if body else ""
+            if self.console:
+                self.console.print(f"  ✎ {title}: {short}", style="green")
+            else:
+                print(f"  ✎ {title}: {short}")
+            return
+
+        # For errors/warnings, show full message (persistent)
         if variant in ("error", "warn"):
             short = body[:150].replace("\n", " ") if body else ""
             if self.console:
@@ -109,13 +158,16 @@ class Logger:
                 print(f"  {icon} {title}: {short}")
             return
 
-        # Default: brief format
-        if body:
-            short = body[:80].replace("\n", " ")
-            if self.console:
-                self.console.print(f"  {icon} {title}: {short}", style=style)
-            else:
-                print(f"  {icon} {title}: {short}")
+        # Other tools are transient - clear previous, print, track for clearing
+        self._clear_transient()
+        short = body[:80].replace("\n", " ").strip() if body else ""
+        if "=" in short:
+            short = short.split("=")[0] + "=..."
+        if self.console:
+            self.console.print(f"  {icon} {title} {short}", style=style)
+        else:
+            print(f"  {icon} {title} {short}")
+        self._last_transient_lines = 1
 
     def _human_pretty(self, title: str, body: str, variant: str) -> None:
         """Full pretty logging with boxes/colors."""
