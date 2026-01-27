@@ -1,119 +1,91 @@
 """Tests for config module."""
-from __future__ import annotations
 
 import pytest
 
+PROVIDER_ENV_VARS = [
+    "OPENAI_API_KEY",
+    "STEWARD_OPENAI_API_KEY",
+    "AZURE_OPENAI_ENDPOINT",
+    "AZURE_OPENAI_KEY",
+    "AZURE_OPENAI_DEPLOYMENT",
+    "STEWARD_AZURE_OPENAI_ENDPOINT",
+    "STEWARD_AZURE_OPENAI_KEY",
+    "STEWARD_AZURE_OPENAI_DEPLOYMENT",
+]
 
-def test_env_int_valid(monkeypatch):
+
+@pytest.fixture()
+def clear_provider_env(monkeypatch: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
+    for var in PROVIDER_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
+    return monkeypatch
+
+
+@pytest.mark.parametrize("value,fallback,expected", [
+    ("42", 0, 42),
+    ("not_a_number", 10, 10),
+    ("-5", 10, 10),
+    (None, 99, 99),
+])
+def test_env_int_cases(monkeypatch, value, fallback, expected):
     from steward.config import env_int
 
-    monkeypatch.setenv("TEST_INT", "42")
-    assert env_int("TEST_INT", 0) == 42
+    if value is None:
+        monkeypatch.delenv("TEST_INT", raising=False)
+    else:
+        monkeypatch.setenv("TEST_INT", value)
+    assert env_int("TEST_INT", fallback) == expected
 
 
-def test_env_int_missing():
-    from steward.config import env_int
-
-    assert env_int("NONEXISTENT_VAR", 99) == 99
-
-
-def test_env_int_invalid(monkeypatch):
-    from steward.config import env_int
-
-    monkeypatch.setenv("TEST_INT", "not_a_number")
-    assert env_int("TEST_INT", 10) == 10
-
-
-def test_env_int_negative(monkeypatch):
-    from steward.config import env_int
-
-    monkeypatch.setenv("TEST_INT", "-5")
-    assert env_int("TEST_INT", 10) == 10  # Negative returns fallback
-
-
-def test_env_list(monkeypatch):
+@pytest.mark.parametrize("value,expected", [
+    ("a,b,c", ["a", "b", "c"]),
+    ("a , b , c", ["a", "b", "c"]),
+    (None, []),
+])
+def test_env_list_cases(monkeypatch, value, expected):
     from steward.config import env_list
 
-    monkeypatch.setenv("TEST_LIST", "a,b,c")
-    result = env_list("TEST_LIST")
-    assert result == ["a", "b", "c"]
+    if value is None:
+        monkeypatch.delenv("TEST_LIST", raising=False)
+    else:
+        monkeypatch.setenv("TEST_LIST", value)
+    assert env_list("TEST_LIST") == expected
 
 
-def test_env_list_empty():
-    from steward.config import env_list
-
-    result = env_list("NONEXISTENT_VAR")
-    assert result == []
-
-
-def test_env_list_with_spaces(monkeypatch):
-    from steward.config import env_list
-
-    monkeypatch.setenv("TEST_LIST", "a , b , c")
-    result = env_list("TEST_LIST")
-    assert result == ["a", "b", "c"]
-
-
-def test_detect_provider_azure(monkeypatch):
+@pytest.mark.parametrize("envs,expected", [
+    (
+        {
+            "AZURE_OPENAI_ENDPOINT": "https://example.openai.azure.com",
+            "AZURE_OPENAI_KEY": "test-key",
+            "AZURE_OPENAI_DEPLOYMENT": "gpt-4",
+        },
+        "azure",
+    ),
+    (
+        {
+            "STEWARD_AZURE_OPENAI_ENDPOINT": "https://example.openai.azure.com",
+            "STEWARD_AZURE_OPENAI_KEY": "test-key",
+            "STEWARD_AZURE_OPENAI_DEPLOYMENT": "gpt-4",
+        },
+        "azure",
+    ),
+    ({"OPENAI_API_KEY": "sk-test-key"}, "openai"),
+    ({"STEWARD_OPENAI_API_KEY": "sk-test-key"}, "openai"),
+    ({}, "echo"),
+    (
+        {
+            "AZURE_OPENAI_ENDPOINT": "https://example.openai.azure.com",
+            "AZURE_OPENAI_KEY": "test-key",
+        },
+        "echo",
+    ),
+])
+def test_detect_provider_variants(clear_provider_env, monkeypatch, envs, expected):
     from steward.config import detect_provider
 
-    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
-    monkeypatch.setenv("AZURE_OPENAI_KEY", "test-key")
-    monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4")
-    assert detect_provider() == "azure"
-
-
-def test_detect_provider_azure_steward_prefix(monkeypatch):
-    from steward.config import detect_provider
-
-    monkeypatch.setenv("STEWARD_AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
-    monkeypatch.setenv("STEWARD_AZURE_OPENAI_KEY", "test-key")
-    monkeypatch.setenv("STEWARD_AZURE_OPENAI_DEPLOYMENT", "gpt-4")
-    assert detect_provider() == "azure"
-
-
-def test_detect_provider_openai(monkeypatch):
-    from steward.config import detect_provider
-
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key")
-    assert detect_provider() == "openai"
-
-
-def test_detect_provider_openai_steward_prefix(monkeypatch):
-    from steward.config import detect_provider
-
-    monkeypatch.setenv("STEWARD_OPENAI_API_KEY", "sk-test-key")
-    assert detect_provider() == "openai"
-
-
-def test_detect_provider_fallback_echo(monkeypatch):
-    from steward.config import detect_provider
-
-    # Clear any provider env vars
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("STEWARD_OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("AZURE_OPENAI_ENDPOINT", raising=False)
-    monkeypatch.delenv("AZURE_OPENAI_KEY", raising=False)
-    monkeypatch.delenv("AZURE_OPENAI_DEPLOYMENT", raising=False)
-    monkeypatch.delenv("STEWARD_AZURE_OPENAI_ENDPOINT", raising=False)
-    monkeypatch.delenv("STEWARD_AZURE_OPENAI_KEY", raising=False)
-    monkeypatch.delenv("STEWARD_AZURE_OPENAI_DEPLOYMENT", raising=False)
-    assert detect_provider() == "echo"
-
-
-def test_detect_provider_azure_incomplete(monkeypatch):
-    from steward.config import detect_provider
-
-    # Only endpoint and key, no deployment - should not detect azure
-    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
-    monkeypatch.setenv("AZURE_OPENAI_KEY", "test-key")
-    monkeypatch.delenv("AZURE_OPENAI_DEPLOYMENT", raising=False)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("STEWARD_OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("STEWARD_AZURE_OPENAI_ENDPOINT", raising=False)
-    monkeypatch.delenv("STEWARD_AZURE_OPENAI_KEY", raising=False)
-    monkeypatch.delenv("STEWARD_AZURE_OPENAI_DEPLOYMENT", raising=False)
-    assert detect_provider() == "echo"
+    for key, value in envs.items():
+        monkeypatch.setenv(key, value)
+    assert detect_provider() == expected
 
 
 @pytest.mark.parametrize("model,expected", [

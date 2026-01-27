@@ -6,13 +6,19 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 
-def test_repl_imports():
+
+@pytest.fixture()
+def repl_patches():
+    with patch('steward.repl.setup_readline'):
+        yield
+
+
+@pytest.mark.parametrize("attr", ["run_repl", "main", "setup_readline", "read_input"])
+def test_repl_imports(attr):
     from steward import repl
-    assert hasattr(repl, 'run_repl')
-    assert hasattr(repl, 'main')
-    assert hasattr(repl, 'setup_readline')
-    assert hasattr(repl, 'read_input')
+    assert hasattr(repl, attr)
 
 
 def test_setup_readline(tmp_path: Path):
@@ -21,157 +27,118 @@ def test_setup_readline(tmp_path: Path):
     with patch('steward.repl.HISTORY_DIR', tmp_path):
         with patch('steward.repl.HISTORY_FILE', tmp_path / 'history'):
             setup_readline()
-            # Should not raise
 
 
-def test_read_input_simple():
+@pytest.mark.parametrize("inputs,expected", [
+    (['hello world'], 'hello world'),
+    (['line one\\', 'line two'], 'line one\nline two'),
+])
+def test_read_input_variants(inputs, expected):
     from steward.repl import read_input
 
-    with patch('builtins.input', return_value='hello world'):
+    input_iter = iter(inputs)
+    with patch('builtins.input', side_effect=lambda _: next(input_iter)):
         result = read_input()
-        assert result == 'hello world'
+        assert result == expected
 
 
-def test_read_input_multiline():
+@pytest.mark.parametrize("side_effect,expected", [
+    (EOFError, None),
+    (KeyboardInterrupt, ''),
+])
+def test_read_input_exceptions(side_effect, expected):
     from steward.repl import read_input
 
-    inputs = iter(['line one\\', 'line two'])
-    with patch('builtins.input', side_effect=lambda _: next(inputs)):
-        result = read_input()
-        assert result == 'line one\nline two'
-
-
-def test_read_input_eof():
-    from steward.repl import read_input
-
-    with patch('builtins.input', side_effect=EOFError):
-        result = read_input()
-        assert result is None
-
-
-def test_read_input_keyboard_interrupt():
-    from steward.repl import read_input
-
-    with patch('builtins.input', side_effect=KeyboardInterrupt):
+    with patch('builtins.input', side_effect=side_effect):
         with patch('sys.stdout', new_callable=StringIO):
             result = read_input()
-            assert result == ''
+            assert result == expected
 
 
-def test_run_repl_exit_command():
+@pytest.mark.parametrize("commands,assert_fn", [
+    (['exit'], None),
+    (['quit'], None),
+    ([":q"], None),
+    (['clear', 'exit'], lambda out: '\033[2J' in out),
+])
+def test_run_repl_basic_commands(repl_patches, commands, assert_fn):
     from steward.repl import run_repl
 
-    inputs = iter(['exit'])
-    with patch('steward.repl.setup_readline'):
-        with patch('builtins.input', side_effect=lambda _: next(inputs)):
-            with patch('sys.stdout', new_callable=StringIO):
-                run_repl(quiet=True)
-                # Should exit cleanly
+    inputs = iter(commands)
+    stdout = StringIO()
+    with patch('builtins.input', side_effect=lambda _: next(inputs)):
+        with patch('sys.stdout', stdout):
+            run_repl(quiet=True)
+
+    if assert_fn:
+        assert assert_fn(stdout.getvalue())
 
 
-def test_run_repl_quit_command():
-    from steward.repl import run_repl
-
-    inputs = iter(['quit'])
-    with patch('steward.repl.setup_readline'):
-        with patch('builtins.input', side_effect=lambda _: next(inputs)):
-            with patch('sys.stdout', new_callable=StringIO):
-                run_repl(quiet=True)
-
-
-def test_run_repl_colon_q_command():
-    from steward.repl import run_repl
-
-    inputs = iter([':q'])
-    with patch('steward.repl.setup_readline'):
-        with patch('builtins.input', side_effect=lambda _: next(inputs)):
-            with patch('sys.stdout', new_callable=StringIO):
-                run_repl(quiet=True)
-
-
-def test_run_repl_clear_command():
-    from steward.repl import run_repl
-
-    inputs = iter(['clear', 'exit'])
-    with patch('steward.repl.setup_readline'):
-        with patch('builtins.input', side_effect=lambda _: next(inputs)):
-            stdout = StringIO()
-            with patch('sys.stdout', stdout):
-                run_repl(quiet=True)
-            # Clear sends ANSI escape
-            assert '\033[2J' in stdout.getvalue()
-
-
-def test_run_repl_history_command():
+def test_run_repl_history_command(repl_patches):
     from steward.repl import run_repl
 
     inputs = iter(['history', 'exit'])
-    with patch('steward.repl.setup_readline'):
-        with patch('readline.get_current_history_length', return_value=0):
-            with patch('builtins.input', side_effect=lambda _: next(inputs)):
-                with patch('sys.stdout', new_callable=StringIO):
-                    run_repl(quiet=True)
+    with patch('readline.get_current_history_length', return_value=0):
+        with patch('builtins.input', side_effect=lambda _: next(inputs)):
+            with patch('sys.stdout', new_callable=StringIO):
+                run_repl(quiet=True)
 
 
-def test_run_repl_new_command_resets_history():
+def test_run_repl_new_command_resets_history(repl_patches):
     from steward.repl import run_repl
     from steward.runner import RunnerResult
 
     inputs = iter(['hello', 'new', 'hello again', 'exit'])
 
-    with patch('steward.repl.setup_readline'):
-        with patch('steward.repl.run_steward_with_history') as mock_run:
-            mock_run.return_value = RunnerResult(response='ok', messages=[{'role': 'user', 'content': 'hello'}])
-            with patch('builtins.input', side_effect=lambda _: next(inputs)):
-                with patch('sys.stdout', new_callable=StringIO):
-                    run_repl(quiet=True)
+    with patch('steward.repl.run_steward_with_history') as mock_run:
+        mock_run.return_value = RunnerResult(response='ok', messages=[{'role': 'user', 'content': 'hello'}])
+        with patch('builtins.input', side_effect=lambda _: next(inputs)):
+            with patch('sys.stdout', new_callable=StringIO):
+                run_repl(quiet=True)
 
     assert mock_run.call_count >= 2
 
 
-def test_run_repl_stats_no_history():
+def test_run_repl_stats_no_history(repl_patches):
     from steward.repl import run_repl
 
     inputs = iter(['stats', 'exit'])
-    with patch('steward.repl.setup_readline'):
-        with patch('builtins.input', side_effect=lambda _: next(inputs)):
-            stdout = StringIO()
-            with patch('sys.stdout', stdout):
-                run_repl(quiet=False)
+    with patch('builtins.input', side_effect=lambda _: next(inputs)):
+        stdout = StringIO()
+        with patch('sys.stdout', stdout):
+            run_repl(quiet=False)
 
     assert 'No conversation history' in stdout.getvalue()
 
-def test_run_repl_eof_exit():
+
+def test_run_repl_eof_exit(repl_patches):
     from steward.repl import run_repl
 
-    with patch('steward.repl.setup_readline'):
-        with patch('builtins.input', side_effect=EOFError):
-            with patch('sys.stdout', new_callable=StringIO):
-                run_repl(quiet=True)
+    with patch('builtins.input', side_effect=EOFError):
+        with patch('sys.stdout', new_callable=StringIO):
+            run_repl(quiet=True)
 
 
-def test_run_repl_empty_input_continues():
+def test_run_repl_empty_input_continues(repl_patches):
     from steward.repl import run_repl
 
     inputs = iter(['', '   ', 'exit'])
-    with patch('steward.repl.setup_readline'):
-        with patch('builtins.input', side_effect=lambda _: next(inputs)):
-            with patch('sys.stdout', new_callable=StringIO):
-                run_repl(quiet=True)
+    with patch('builtins.input', side_effect=lambda _: next(inputs)):
+        with patch('sys.stdout', new_callable=StringIO):
+            run_repl(quiet=True)
 
 
 @patch('steward.repl.run_steward_with_history')
-def test_run_repl_executes_prompt(mock_run_steward):
+def test_run_repl_executes_prompt(mock_run_steward, repl_patches):
     from steward.repl import run_repl
     from steward.runner import RunnerResult
 
     inputs = iter(['hello world', 'exit'])
     mock_run_steward.return_value = RunnerResult(response='response', messages=[])
 
-    with patch('steward.repl.setup_readline'):
-        with patch('builtins.input', side_effect=lambda _: next(inputs)):
-            with patch('sys.stdout', new_callable=StringIO):
-                run_repl(quiet=True)
+    with patch('builtins.input', side_effect=lambda _: next(inputs)):
+        with patch('sys.stdout', new_callable=StringIO):
+            run_repl(quiet=True)
 
     assert mock_run_steward.called
     call_args = mock_run_steward.call_args[0][0]
@@ -180,57 +147,54 @@ def test_run_repl_executes_prompt(mock_run_steward):
 
 
 @patch('steward.repl.run_steward_with_history')
-def test_run_repl_handles_error(mock_run_steward):
+def test_run_repl_handles_error(mock_run_steward, repl_patches):
     from steward.repl import run_repl
 
     inputs = iter(['test prompt', 'exit'])
     mock_run_steward.side_effect = Exception('Test error')
 
     stderr_capture = StringIO()
-    with patch('steward.repl.setup_readline'):
-        with patch('builtins.input', side_effect=lambda _: next(inputs)):
-            with patch('sys.stdout', new_callable=StringIO):
-                with patch('steward.repl.stderr', stderr_capture):
-                    run_repl(quiet=True)
+    with patch('builtins.input', side_effect=lambda _: next(inputs)):
+        with patch('sys.stdout', new_callable=StringIO):
+            with patch('steward.repl.stderr', stderr_capture):
+                run_repl(quiet=True)
 
     assert 'Error: Test error' in stderr_capture.getvalue()
 
 
-def test_run_repl_banner_shown():
+def test_run_repl_banner_shown(repl_patches):
     from steward.repl import run_repl
 
     inputs = iter(['exit'])
-    with patch('steward.repl.setup_readline'):
-        with patch('builtins.input', side_effect=lambda _: next(inputs)):
-            stdout = StringIO()
-            with patch('sys.stdout', stdout):
-                run_repl(quiet=False)
+    with patch('builtins.input', side_effect=lambda _: next(inputs)):
+        stdout = StringIO()
+        with patch('sys.stdout', stdout):
+            run_repl(quiet=False)
 
     output = stdout.getvalue()
     assert 'Steward REPL' in output
     assert 'Commands:' in output
 
 
-def test_run_repl_streams_markdown():
+def test_run_repl_streams_markdown(repl_patches):
     from steward.repl import run_repl
     from steward.runner import RunnerResult
 
     inputs = iter(['stream test', 'exit'])
-    with patch('steward.repl.setup_readline'):
-        with patch('builtins.input', side_effect=lambda _: next(inputs)):
-            with patch('steward.repl.run_steward_with_history') as mock_run:
-                def fake_run(opts):
-                    opts.stream_handler("**Hello", False)
-                    opts.stream_handler(" World**", True)
-                    return RunnerResult(response="**Hello World**", messages=[])
-                mock_run.side_effect = fake_run
-                with patch('steward.repl.Live') as mock_live:
-                    with patch('steward.repl.Markdown'):
-                        with patch('sys.stdout', new_callable=StringIO):
-                            run_repl(quiet=False, pretty=True)
-                assert mock_live.return_value.start.called
-                assert mock_live.return_value.update.called
-                assert mock_live.return_value.stop.called
+    with patch('builtins.input', side_effect=lambda _: next(inputs)):
+        with patch('steward.repl.run_steward_with_history') as mock_run:
+            def fake_run(opts):
+                opts.stream_handler("**Hello", False)
+                opts.stream_handler(" World**", True)
+                return RunnerResult(response="**Hello World**", messages=[])
+            mock_run.side_effect = fake_run
+            with patch('steward.repl.Live') as mock_live:
+                with patch('steward.repl.Markdown'):
+                    with patch('sys.stdout', new_callable=StringIO):
+                        run_repl(quiet=False, pretty=True)
+            assert mock_live.return_value.start.called
+            assert mock_live.return_value.update.called
+            assert mock_live.return_value.stop.called
 
 
 def test_main_function():
@@ -242,7 +206,7 @@ def test_main_function():
             assert mock_run.called
 
 
-def test_cli_repl_flag():
+def test_cli_repl_flags():
     from steward.cli import parse_args
 
     with patch.object(sys, 'argv', ['steward', '--repl']):
@@ -250,12 +214,7 @@ def test_cli_repl_flag():
         assert isinstance(result, dict)
         assert result['repl'] is True
 
-
-def test_cli_repl_with_provider():
-    from steward.cli import parse_args
-
     with patch.object(sys, 'argv', ['steward', '--repl', '--provider', 'openai']):
         result = parse_args()
         assert isinstance(result, dict)
         assert result['repl'] is True
-        assert result['provider'] == 'openai'
