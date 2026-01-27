@@ -5,6 +5,10 @@ Supports umcp-style discovery where:
 - Functions named prompt_<name> are discovered as prompts
 - Type hints on parameters generate JSON schema
 - Docstrings provide descriptions
+
+CACHING NOTE: Tool definitions are sorted alphabetically by name to ensure
+consistent ordering across requests. This maximizes prompt cache hit rates
+since OpenAI caches prompts with identical prefixes (first 1024+ tokens).
 """
 from __future__ import annotations
 
