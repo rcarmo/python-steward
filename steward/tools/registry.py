@@ -185,6 +185,8 @@ def discover_tools() -> Tuple[List[ToolDefinition], Dict[str, ToolHandler]]:
 
     Tools in EXECUTE_TOOLS are hidden when STEWARD_ALLOW_EXECUTE != "1".
     Tools in MCP_TOOLS are hidden when no MCP servers are configured.
+
+    Returns definitions sorted by name for prompt caching stability.
     """
     definitions: List[ToolDefinition] = []
     handlers: Dict[str, ToolHandler] = {}
@@ -234,6 +236,8 @@ def discover_tools() -> Tuple[List[ToolDefinition], Dict[str, ToolHandler]]:
                 definitions.append(auto_def)
                 handlers[tool_name] = _create_wrapper(handler)
 
+    # Sort definitions by name for prompt caching stability (Codex pattern)
+    definitions.sort(key=lambda d: d["name"])
     return definitions, handlers
 
 

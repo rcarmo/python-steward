@@ -59,10 +59,12 @@ class SkillRegistry:
         return list(self._skills.get(name, []))
 
     def all(self) -> List[SkillMetadata]:
-        """Get all discovered skills."""
+        """Get all discovered skills, sorted by name for deterministic ordering."""
         results: List[SkillMetadata] = []
         for skills in self._skills.values():
             results.extend(skills)
+        # Sort by name then path for deterministic order (Codex caching pattern)
+        results.sort(key=lambda s: (s.name, s.path))
         return results
 
     def match(self, query: str, limit: int = 5) -> List[tuple[SkillMetadata, float]]:
