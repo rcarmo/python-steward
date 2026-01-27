@@ -62,17 +62,3 @@ def test_cli_quiet_mode(mock_run, sandbox: Path):
             except SystemExit:
                 pass
 
-
-@patch('steward.fediverse.run_fediverse')
-def test_cli_mastodon_mode(mock_fediverse, sandbox: Path, monkeypatch):
-    from steward.cli import main
-
-    monkeypatch.setenv("MASTODON_INSTANCE", "https://test.social")
-    monkeypatch.setenv("MASTODON_ACCESS_TOKEN", "token")
-
-    with patch.object(sys, 'argv', ['steward', '--mastodon', '--provider', 'echo']):
-        main()
-
-    mock_fediverse.assert_called_once()
-    call_kwargs = mock_fediverse.call_args[1]
-    assert call_kwargs['provider'] == 'echo'

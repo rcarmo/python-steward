@@ -5,7 +5,7 @@ from os import getcwd
 from pathlib import Path
 from typing import List, Optional
 
-VERSION = "0.11.0"
+VERSION = "0.11.1"
 
 # AGENTS.md configuration file names (checked in order)
 AGENTS_FILES = ["AGENTS.md", "agents.md", ".agents.md"]

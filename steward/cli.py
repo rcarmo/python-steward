@@ -12,14 +12,13 @@ from .session import generate_session_id
 
 
 def parse_args() -> Union[RunnerOptions, dict]:
-    """Parse CLI arguments. Returns RunnerOptions for single run, or dict with mode key for REPL/Mastodon."""
+    """Parse CLI arguments. Returns RunnerOptions for single run, or dict with mode key for REPL."""
     # Load .env early before parsing args
     ensure_dotenv_loaded()
 
     parser = argparse.ArgumentParser(description="steward <prompt> [options]")
     parser.add_argument("prompt", nargs=argparse.REMAINDER, help="Prompt to run")
     parser.add_argument("--repl", action="store_true", help="Start interactive REPL mode")
-    parser.add_argument("--mastodon", action="store_true", help="Start Mastodon/ActivityPub mode (polls for mentions)")
     parser.add_argument("--provider", choices=["echo", "openai", "azure"], help="LLM provider (default: echo)")
     parser.add_argument("--model", help="Model name (default: gpt-4o-mini)")
     parser.add_argument("--max-steps", type=int, help="Limit tool/LLM turns (default: 16)")
@@ -64,17 +63,6 @@ def parse_args() -> Union[RunnerOptions, dict]:
     if parsed.session:
         session_id = parsed.session if parsed.session != "auto" else generate_session_id()
 
-    # Mastodon mode
-    if parsed.mastodon:
-        return {
-            "mastodon": True,
-            "provider": parsed.provider,
-            "model": parsed.model,
-            "max_steps": parsed.max_steps,
-            "system_prompt": system_prompt,
-            "custom_instructions": custom_instructions,
-        }
-
     # REPL mode (default when no prompt provided)
     prompt_text = " ".join(parsed.prompt).strip()
     if parsed.repl or not prompt_text:
@@ -114,16 +102,7 @@ def parse_args() -> Union[RunnerOptions, dict]:
 def main() -> None:
     result = parse_args()
     if isinstance(result, dict):
-        if result.get("mastodon"):
-            from .fediverse import run_fediverse
-            run_fediverse(
-                provider=result["provider"],
-                model=result["model"],
-                max_steps=result["max_steps"],
-                system_prompt=result["system_prompt"],
-                custom_instructions=result["custom_instructions"],
-            )
-        elif result.get("repl"):
+        if result.get("repl"):
             from .repl import run_repl
             run_repl(
                 provider=result["provider"],

@@ -44,6 +44,7 @@ class RunnerOptions:
     max_history_tokens: Optional[int] = None  # Token limit for conversation history
     stream_handler: Optional[StreamHandler] = None
     previous_response_id: Optional[str] = None  # For Responses API conversation chaining
+    llm_client: Optional[LLMClient] = None  # Reuse client/session across calls
 
 
 @dataclass
@@ -78,7 +79,7 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
     tool_definitions, tool_handlers = discover_tools()
     provider = options.provider or detect_provider()
     model = options.model or DEFAULT_MODEL
-    client = build_client(provider, model, timeout_ms=options.request_timeout_ms)
+    client = options.llm_client or build_client(provider, model, timeout_ms=options.request_timeout_ms)
     logger = Logger(
         provider=provider,
         model=model,

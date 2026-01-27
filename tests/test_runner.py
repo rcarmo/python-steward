@@ -141,6 +141,7 @@ def test_runner_options_has_previous_response_id():
 
 
 def test_runner_options():
+    from steward.llm import EchoClient
     from steward.runner import RunnerOptions
 
     opts = RunnerOptions(
@@ -148,10 +149,12 @@ def test_runner_options():
         system_prompt="custom system",
         max_steps=10,
         provider="echo",
-        model="test-model"
+        model="test-model",
+        llm_client=EchoClient("test-model"),
     )
     assert opts.prompt == "test prompt"
     assert opts.max_steps == 10
+    assert opts.llm_client is not None
 
 
 @patch('steward.runner.build_client')
