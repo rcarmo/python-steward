@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from steward.conversation import (
+    compact_history,
     count_tokens,
     get_conversation_stats,
     should_truncate,
@@ -161,3 +162,85 @@ def test_truncate_no_system_prompt():
     truncated, dropped = truncate_history(messages, max_tokens=100000)
     assert len(truncated) == 2
     assert truncated[0]["role"] == "user"
+
+
+def test_compact_history_summarizes_old_tools():
+    """Test that compact_history summarizes old tool calls."""
+    messages = [
+        {"role": "system", "content": "System"},
+        {"role": "user", "content": "Task 1"},
+        {
+            "role": "assistant",
+            "content": "Reading file",
+            "tool_calls": [{"id": "c1", "name": "view", "arguments": {"path": "file1.py"}}],
+        },
+        {"role": "tool", "content": "def foo(): pass", "tool_call_id": "c1"},
+        {"role": "user", "content": "Task 2"},
+        {
+            "role": "assistant",
+            "content": "Editing",
+            "tool_calls": [{"id": "c2", "name": "edit", "arguments": {"path": "file1.py"}}],
+        },
+        {"role": "tool", "content": "Edited", "tool_call_id": "c2"},
+        {"role": "user", "content": "Task 3"},
+        {"role": "assistant", "content": "Done"},
+        {"role": "user", "content": "Task 4"},
+        {"role": "assistant", "content": "Done again"},
+    ]
+
+    compacted, summary = compact_history(messages, keep_recent_turns=2)
+
+    # Should have compacted old turns
+    assert len(compacted) < len(messages)
+    # Summary should mention file operations
+    assert "Prior context" in summary or summary == ""
+
+
+def test_compact_history_with_bash_and_search():
+    """Test that compact_history summarizes bash and grep commands."""
+    messages = [
+        {"role": "system", "content": "System"},
+        {"role": "user", "content": "Search"},
+        {
+            "role": "assistant",
+            "content": "Searching",
+            "tool_calls": [
+                {"id": "c1", "name": "grep", "arguments": {"pattern": "TODO"}},
+                {"id": "c2", "name": "bash", "arguments": {"command": "make test"}},
+            ],
+        },
+        {"role": "tool", "content": "file.py:1:TODO", "tool_call_id": "c1"},
+        {"role": "tool", "content": "ok", "tool_call_id": "c2"},
+        {"role": "user", "content": "Next task"},
+        {"role": "assistant", "content": "Done"},
+        {"role": "user", "content": "Another task"},
+        {"role": "assistant", "content": "Done"},
+        {"role": "user", "content": "Final task"},
+        {"role": "assistant", "content": "Done"},
+    ]
+
+    compacted, summary = compact_history(messages, keep_recent_turns=2)
+
+    # Should summarize searches and commands
+    assert len(compacted) < len(messages)
+
+
+def test_compact_history_no_change_when_short():
+    """Test that compact_history doesn't change short conversations."""
+    messages = [
+        {"role": "system", "content": "System"},
+        {"role": "user", "content": "Hello"},
+        {"role": "assistant", "content": "Hi"},
+    ]
+
+    compacted, summary = compact_history(messages, keep_recent_turns=5)
+
+    assert len(compacted) == len(messages)
+    assert summary == ""
+
+
+def test_compact_history_empty():
+    """Test compact_history with empty messages."""
+    compacted, summary = compact_history([], keep_recent_turns=5)
+    assert compacted == []
+    assert summary == ""

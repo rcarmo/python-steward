@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Callable
 
-from ..config import env_int, get_sandbox_root
+from ..config import DEFAULT_TOOL_OUTPUT_LIMIT, env_int, get_sandbox_root
 
 TodoStatus = str
 
@@ -17,6 +17,23 @@ CRAWLER_USER_AGENT = "Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com
 
 # Standard browser User-Agent for DuckDuckGo searches (WebKit/Safari)
 BROWSER_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15"
+
+
+def truncate_tool_output(output: str, max_chars: int = DEFAULT_TOOL_OUTPUT_LIMIT) -> str:
+    """
+    Truncate tool output to fit within context limits (Codex-style).
+
+    Prevents context window blowup from verbose tool outputs.
+    Adds clear marker so model knows output was truncated.
+    """
+    if len(output) <= max_chars:
+        return output
+    # Try to truncate at a line boundary
+    truncated = output[:max_chars]
+    last_newline = truncated.rfind("\n")
+    if last_newline > max_chars * 0.8:  # Only if we don't lose too much
+        truncated = truncated[:last_newline]
+    return truncated + "\n[...output truncated, use view_range or pagination for more]"
 
 
 def print_status(message: str) -> None:

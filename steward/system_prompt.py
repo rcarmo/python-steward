@@ -5,7 +5,64 @@ from os import getcwd
 from pathlib import Path
 from typing import List, Optional
 
-VERSION = "0.1.0"
+VERSION = "0.11.0"
+
+# AGENTS.md configuration file names (checked in order)
+AGENTS_FILES = ["AGENTS.md", "agents.md", ".agents.md"]
+
+
+def load_agents_instructions() -> Optional[str]:
+    """
+    Load layered AGENTS.md instructions (Codex-style).
+
+    Checks in order (more specific overrides general):
+    1. ~/.steward/AGENTS.md (global defaults)
+    2. <git_root>/AGENTS.md (repo-level)
+    3. <cwd>/AGENTS.md (directory-specific)
+
+    Returns combined instructions or None if no files found.
+    """
+    instructions = []
+
+    # 1. Global config
+    home = Path.home()
+    for name in AGENTS_FILES:
+        global_path = home / ".steward" / name
+        if global_path.exists():
+            try:
+                instructions.append(f"# Global instructions ({name})\n{global_path.read_text(encoding='utf8').strip()}")
+            except OSError:
+                pass
+            break
+
+    # 2. Repo-level (git root)
+    cwd = Path(getcwd())
+    git_root = _find_git_root(str(cwd))
+    if git_root:
+        git_root_path = Path(git_root)
+        for name in AGENTS_FILES:
+            repo_path = git_root_path / name
+            if repo_path.exists() and repo_path != cwd / name:
+                try:
+                    instructions.append(f"# Repository instructions ({name})\n{repo_path.read_text(encoding='utf8').strip()}")
+                except OSError:
+                    pass
+                break
+
+    # 3. Current directory (most specific)
+    for name in AGENTS_FILES:
+        local_path = cwd / name
+        if local_path.exists():
+            try:
+                instructions.append(f"# Directory instructions ({name})\n{local_path.read_text(encoding='utf8').strip()}")
+            except OSError:
+                pass
+            break
+
+    if not instructions:
+        return None
+
+    return "\n\n".join(instructions)
 
 
 def get_environment_context() -> str:
@@ -40,8 +97,25 @@ def build_system_prompt(
     plan_mode: bool = False,
     skill_context: Optional[str] = None,
 ) -> str:
-    """Build comprehensive system prompt aligned with Copilot CLI."""
-    tools_list = ", ".join(tool_names)
+    """Build comprehensive system prompt aligned with Codex patterns.
+
+    Prompt structure (static content first for cache hits):
+    1. Header/role definition
+    2. Tone and style
+    3. Tool efficiency rules
+    4. Code change rules
+    5. Tool guidance
+    6. Security
+    7. Task completion + iteration workflow
+    8. Environment context (variable - cwd)
+    9. AGENTS.md instructions (layered)
+    10. Skills context
+    11. Session context
+    12. Custom instructions
+    13. Plan mode (if active)
+    14. Tips
+    """
+    tools_list = ", ".join(sorted(tool_names))  # Sort for cache stability
     env_context = get_environment_context()
 
     sections = [
@@ -54,6 +128,11 @@ def build_system_prompt(
         _task_completion_section(),
         env_context,
     ]
+
+    # Load AGENTS.md instructions (Codex-style layered config)
+    agents_instructions = load_agents_instructions()
+    if agents_instructions:
+        sections.append(f"<agents_instructions>\n{agents_instructions}\n</agents_instructions>")
 
     if skill_context:
         sections.append(skill_context)
@@ -199,6 +278,16 @@ def _task_completion_section() -> str:
 * After starting background processes, verify they are running
 * If an approach fails, try alternatives before concluding impossible
 </task_completion>
+
+<iteration_workflow>
+Follow this cycle for code changes (READ → EDIT → TEST → VERIFY):
+1. **READ**: View relevant files to understand context before changing
+2. **EDIT**: Make minimal, surgical changes (prefer small diffs)
+3. **TEST**: Run the project's existing tests/linters after changes
+4. **VERIFY**: Confirm changes work before declaring success
+
+Never declare a task complete without verification. Run tests, check output, or demonstrate the fix works.
+</iteration_workflow>
 
 <error_handling>
 When tools fail:

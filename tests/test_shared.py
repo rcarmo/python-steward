@@ -83,6 +83,24 @@ def test_truncate_output():
     assert len(result) < 200
 
 
+def test_truncate_tool_output():
+    from steward.tools.shared import truncate_tool_output
+
+    short = "short output"
+    assert truncate_tool_output(short) == short
+
+    # Test with default limit (8000)
+    long = "x" * 10000
+    result = truncate_tool_output(long)
+    assert "truncated" in result
+    assert len(result) < 9000  # Must be truncated
+
+    # Test with custom limit
+    result2 = truncate_tool_output(long, max_chars=100)
+    assert len(result2) <= 200  # includes truncation marker
+    assert "truncated" in result2
+
+
 def test_build_matcher_simple():
     from steward.tools.shared import build_matcher
 

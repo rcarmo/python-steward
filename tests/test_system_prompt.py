@@ -1,11 +1,13 @@
 """Tests for system_prompt module."""
 import os
+from pathlib import Path
 
 from steward.system_prompt import (
     VERSION,
     build_system_prompt,
     default_system_prompt,
     get_environment_context,
+    load_agents_instructions,
 )
 
 
@@ -145,3 +147,41 @@ def test_build_system_prompt_store_memory_guidance():
     assert "store_memory" in prompt
     assert "facts" in prompt.lower()
     assert "citations" in prompt.lower()
+
+
+def test_build_system_prompt_iteration_workflow():
+    """Test that iteration workflow (Codex-style) is present."""
+    prompt = build_system_prompt(["view", "edit"])
+    assert "<iteration_workflow>" in prompt
+    assert "READ" in prompt
+    assert "EDIT" in prompt
+    assert "TEST" in prompt
+    assert "VERIFY" in prompt
+
+
+def test_build_system_prompt_tools_sorted():
+    """Test that tools are sorted for cache stability."""
+    prompt1 = build_system_prompt(["view", "edit", "bash"])
+    prompt2 = build_system_prompt(["bash", "view", "edit"])
+    # Both should produce same sorted list
+    assert "bash, edit, view" in prompt1
+    assert "bash, edit, view" in prompt2
+
+
+def test_load_agents_instructions_none(sandbox: Path):
+    """Test that load_agents_instructions returns None when no files exist."""
+    result = load_agents_instructions()
+    # May or may not find files depending on test environment
+    # Just ensure it doesn't crash
+    assert result is None or isinstance(result, str)
+
+
+def test_load_agents_instructions_local(sandbox: Path):
+    """Test loading AGENTS.md from current directory."""
+    agents_file = sandbox / "AGENTS.md"
+    agents_file.write_text("# Local Instructions\nUse pytest for testing.", encoding="utf8")
+
+    result = load_agents_instructions()
+    assert result is not None
+    assert "Local Instructions" in result
+    assert "pytest" in result

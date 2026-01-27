@@ -59,7 +59,7 @@ def run_steward_with_history(options: RunnerOptions) -> RunnerResult:
 
 async def run_steward_async(options: RunnerOptions) -> RunnerResult:
     """Run steward and return result with full conversation history for multi-turn conversations."""
-    from .conversation import DEFAULT_MAX_HISTORY_TOKENS, should_truncate, truncate_history
+    from .conversation import DEFAULT_MAX_HISTORY_TOKENS, compact_history, should_truncate, truncate_history
     from .session import get_session_context, init_session
     from .skills import get_registry
 
@@ -104,15 +104,26 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
         messages = list(options.conversation_history)  # Copy to avoid mutation
         messages.append({"role": "user", "content": prompt})
 
-        # Check if we need to truncate history
+        # Codex-style context management: compact before truncating
+        # First try compaction (summarizes old tool results)
         if should_truncate(messages, max_history_tokens, model):
-            messages, dropped = truncate_history(messages, max_history_tokens, model)
-            if dropped > 0:
+            messages, summary = compact_history(messages, keep_recent_turns=5, model=model)
+            if summary:
                 logger.human(HumanEntry(
                     title="history",
-                    body=f"Truncated {dropped} tokens from conversation history",
-                    variant="warn"
+                    body=f"Compacted: {summary[:80]}...",
+                    variant="tool"
                 ))
+
+            # If still too large after compaction, truncate
+            if should_truncate(messages, max_history_tokens, model):
+                messages, dropped = truncate_history(messages, max_history_tokens, model)
+                if dropped > 0:
+                    logger.human(HumanEntry(
+                        title="history",
+                        body=f"Truncated {dropped} tokens from conversation history",
+                        variant="warn"
+                    ))
     else:
         # Build skill context for system prompt
         skill_context = _build_skill_context(registry, prompt)

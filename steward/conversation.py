@@ -1,4 +1,4 @@
-"""Conversation history management with token-aware sliding window."""
+"""Conversation history management with token-aware sliding window and compaction."""
 from __future__ import annotations
 
 import json
@@ -9,6 +9,7 @@ from .types import Message
 # Default token limits (conservative for safety margin)
 DEFAULT_MAX_HISTORY_TOKENS = 100_000
 RESPONSE_RESERVE_TOKENS = 4_000  # Reserve for model response
+COMPACTION_THRESHOLD_TURNS = 5  # Summarize tool results older than this many turns
 
 
 class _FallbackEncoding:
@@ -144,6 +145,93 @@ def truncate_history(
     dropped_tokens = original_tokens - final_tokens
 
     return result, dropped_tokens
+
+
+def compact_history(
+    messages: List[Message],
+    keep_recent_turns: int = COMPACTION_THRESHOLD_TURNS,
+    model: str = "gpt-4",
+) -> Tuple[List[Message], str]:
+    """
+    Compact conversation history by summarizing older tool results.
+
+    Codex-style compaction: instead of just truncating, we summarize older
+    tool interactions to preserve context while reducing tokens.
+
+    Returns:
+        Tuple of (compacted messages, summary of what was compacted)
+    """
+    if not messages:
+        return messages, ""
+
+    # Separate system prompt
+    system_msg = None
+    other_messages = messages
+    if messages and messages[0].get("role") == "system":
+        system_msg = messages[0]
+        other_messages = messages[1:]
+
+    # Group messages and identify recent vs old
+    grouped = _group_messages(other_messages)
+
+    if len(grouped) <= keep_recent_turns:
+        return messages, ""  # Nothing to compact
+
+    # Split into old (to summarize) and recent (to keep)
+    old_groups = grouped[:-keep_recent_turns]
+    recent_groups = grouped[-keep_recent_turns:]
+
+    # Build summary of old interactions
+    summary_parts = []
+    files_read = set()
+    files_edited = set()
+    commands_run = []
+    searches_done = []
+
+    for group in old_groups:
+        for msg in group:
+            if msg.get("role") == "assistant" and msg.get("tool_calls"):
+                for call in msg.get("tool_calls", []):
+                    name = call.get("name", "")
+                    args = call.get("arguments", {})
+                    if name == "view" and isinstance(args, dict):
+                        files_read.add(args.get("path", ""))
+                    elif name == "edit" and isinstance(args, dict):
+                        files_edited.add(args.get("path", ""))
+                    elif name == "bash" and isinstance(args, dict):
+                        cmd = args.get("command", "")[:50]
+                        if cmd:
+                            commands_run.append(cmd)
+                    elif name in ("grep", "glob") and isinstance(args, dict):
+                        pattern = args.get("pattern", "")[:30]
+                        if pattern:
+                            searches_done.append(f"{name}:{pattern}")
+
+    if files_read:
+        summary_parts.append(f"Files read: {', '.join(sorted(files_read)[:10])}")
+    if files_edited:
+        summary_parts.append(f"Files edited: {', '.join(sorted(files_edited)[:10])}")
+    if commands_run:
+        summary_parts.append(f"Commands: {'; '.join(commands_run[:5])}")
+    if searches_done:
+        summary_parts.append(f"Searches: {', '.join(searches_done[:5])}")
+
+    summary = "[Prior context: " + "; ".join(summary_parts) + "]" if summary_parts else ""
+
+    # Build compacted messages
+    result = []
+    if system_msg:
+        result.append(system_msg)
+
+    # Add summary as a system message if we have one
+    if summary:
+        result.append({"role": "system", "content": summary})
+
+    # Add recent messages
+    for group in recent_groups:
+        result.extend(group)
+
+    return result, summary
 
 
 def should_truncate(

@@ -12,6 +12,10 @@ DEFAULT_PROVIDER = "echo"
 DEFAULT_MAX_STEPS = 32
 DEFAULT_REQUEST_TIMEOUT_MS: Optional[int] = None
 
+# Tool output limits (Codex-style truncation for context efficiency)
+DEFAULT_TOOL_OUTPUT_LIMIT = 8000  # chars - prevents context blowup
+DEFAULT_BASH_OUTPUT_LIMIT = 16000  # bash can be more verbose
+
 # Track if we've loaded .env
 _dotenv_loaded = False
 
