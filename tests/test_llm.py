@@ -149,7 +149,7 @@ def test_openai_client_empty_choices(mock_openai):
 
     mock_client = mock_openai.return_value
     mock_client.chat.completions.create = mock_create
-    client = OpenAIClient("gpt-4", api_key="test")
+    client = OpenAIClient("gpt-4", api_key="test", use_responses_api=False)
     result = asyncio.run(client.generate([{"role": "user", "content": "hi"}]))
     assert result["content"] is None
     assert result["toolCalls"] is None
@@ -180,6 +180,29 @@ def test_openai_client_responses_api_with_previous_id(mock_openai):
     ))
     assert result["content"] == "ok"
     assert result.get("response_id") == "resp_123"
+
+
+@patch.dict(os.environ, {"STEWARD_OPENAI_API_KEY": "test-key", "STEWARD_USE_RESPONSES_API": "auto"})
+@patch('steward.llm.AsyncOpenAI')
+def test_openai_client_auto_selects_responses(mock_openai):
+    from steward.llm import OpenAIClient
+
+    response = type("Resp", (), {
+        "output_text": "ok",
+        "id": "resp_auto",
+        "output": [],
+        "usage": None,
+    })()
+
+    async def mock_create(**_kwargs):
+        return response
+
+    mock_client = mock_openai.return_value
+    mock_client.responses.create = mock_create
+    client = OpenAIClient("gpt-4", api_key="test", use_responses_api=None)
+
+    result = asyncio.run(client.generate([{"role": "user", "content": "hi"}]))
+    assert result.get("response_id") == "resp_auto"
 
 
 def test_to_responses_tool():

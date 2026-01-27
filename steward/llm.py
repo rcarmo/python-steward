@@ -33,7 +33,15 @@ class EchoClient:
 
 
 class OpenAIClient:
-    def __init__(self, model: str, api_key: str, base_url: Optional[str] = None, default_query: Optional[Dict[str, str]] = None, timeout_ms: Optional[int] = None, use_responses_api: bool = False) -> None:
+    def __init__(
+        self,
+        model: str,
+        api_key: str,
+        base_url: Optional[str] = None,
+        default_query: Optional[Dict[str, str]] = None,
+        timeout_ms: Optional[int] = None,
+        use_responses_api: Optional[bool] = None,
+    ) -> None:
         if not api_key:
             raise ValueError("STEWARD_OPENAI_API_KEY (or Azure key) is required for this provider")
         self.model = model
@@ -48,8 +56,18 @@ class OpenAIClient:
         stream_handler: Optional[Union[StreamHandler, AsyncStreamHandler]] = None,
         previous_response_id: Optional[str] = None,
     ) -> LLMResult:
-        # Use Responses API if enabled and we have a previous_response_id or want to start a chain
-        if self.use_responses_api:
+        # Auto-detect Responses API usage if not explicitly configured.
+        # Prefer Responses when chaining or when not streaming.
+        use_responses = self.use_responses_api
+        if use_responses is None:
+            if previous_response_id:
+                use_responses = True
+            elif stream_handler:
+                use_responses = False
+            else:
+                use_responses = True
+
+        if use_responses:
             return await self._generate_responses_api(messages, tools, stream_handler, previous_response_id)
         return await self._generate_chat_completions(messages, tools, stream_handler)
 
@@ -197,12 +215,22 @@ class OpenAIClient:
         return {"content": content, "toolCalls": tool_calls, "usage": usage}
 
 
-def build_client(provider: str, model: str, timeout_ms: Optional[int] = None, use_responses_api: bool = False) -> LLMClient:
+def build_client(
+    provider: str,
+    model: str,
+    timeout_ms: Optional[int] = None,
+    use_responses_api: Optional[bool] = None,
+) -> LLMClient:
     from os import getenv
 
     # Check env var for Responses API preference
-    if getenv("STEWARD_USE_RESPONSES_API", "").lower() in ("1", "true", "yes"):
+    raw = getenv("STEWARD_USE_RESPONSES_API", "").strip().lower()
+    if raw in ("1", "true", "yes"):
         use_responses_api = True
+    elif raw in ("0", "false", "no"):
+        use_responses_api = False
+    elif raw in ("auto", ""):
+        use_responses_api = use_responses_api if use_responses_api is not None else None
 
     if provider == "openai":
         api_key = getenv("STEWARD_OPENAI_API_KEY") or getenv("OPENAI_API_KEY") or ""
