@@ -74,6 +74,31 @@ def test_run_repl_basic_commands(repl_patches, commands, assert_fn):
         assert assert_fn(stdout.getvalue())
 
 
+def test_run_repl_exit_prints_usage_summary(repl_patches):
+    from steward.repl import run_repl
+    from steward.runner import RunnerResult
+
+    inputs = iter(['hello', 'exit'])
+    with patch('builtins.input', side_effect=lambda _: next(inputs)):
+        with patch('steward.repl.run_steward_with_history') as mock_run:
+            mock_run.return_value = RunnerResult(
+                response='ok',
+                messages=[],
+                usage_summary={
+                    "prompt_tokens": 100,
+                    "completion_tokens": 50,
+                    "total_tokens": 150,
+                    "cached_tokens": 40,
+                }
+            )
+            stdout = StringIO()
+            with patch('sys.stdout', stdout):
+                run_repl(quiet=False)
+    output = stdout.getvalue()
+    assert "Session token stats" in output
+    assert "cached: 40" in output
+
+
 def test_run_repl_history_command(repl_patches):
     from steward.repl import run_repl
 

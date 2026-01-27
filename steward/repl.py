@@ -12,7 +12,7 @@ from rich.live import Live
 from rich.markdown import Markdown
 
 from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, detect_provider, ensure_dotenv_loaded
-from .runner import RunnerOptions, run_steward_with_history
+from .runner import RunnerOptions, RunnerResult, run_steward_with_history
 from .session import generate_session_id
 from .types import Message
 
@@ -114,11 +114,26 @@ def run_repl(
 
     # Conversation history for multi-turn
     conversation_history: Optional[List[Message]] = None
+    last_result: Optional[RunnerResult] = None
 
     if not quiet:
         print(f"Steward REPL (provider={effective_provider}, model={effective_model})")
         print("Commands: new (fresh conversation), stats (token count), clear, exit")
         print("")
+
+    def _print_usage_summary(result: RunnerResult) -> None:
+        if quiet or not result or not result.usage_summary:
+            return
+        usage = result.usage_summary
+        prompt = usage.get("prompt_tokens", 0)
+        completion = usage.get("completion_tokens", 0)
+        total = usage.get("total_tokens", 0)
+        cached = usage.get("cached_tokens", 0)
+        print("\nSession token stats:")
+        print(f"  prompt: {prompt}, completion: {completion}, total: {total}")
+        if cached:
+            cache_pct = int(100 * cached / prompt) if prompt else 0
+            print(f"  cached: {cached} ({cache_pct}% of prompt)")
 
     while True:
         prompt_text = read_input()
@@ -127,6 +142,8 @@ def run_repl(
             # EOF (Ctrl+D)
             if not quiet:
                 print("\nGoodbye!")
+                if last_result:
+                    _print_usage_summary(last_result)
             break
 
         if not prompt_text.strip():
@@ -138,6 +155,8 @@ def run_repl(
         if stripped in ("exit", "quit", ":q"):
             if not quiet:
                 print("Goodbye!")
+                if last_result:
+                    _print_usage_summary(last_result)
             break
 
         if stripped == "clear":
@@ -146,6 +165,7 @@ def run_repl(
 
         if stripped == "new":
             conversation_history = None
+            last_result = None
             if not quiet:
                 print("Started new conversation.")
             continue
@@ -214,6 +234,7 @@ def run_repl(
 
         try:
             result = run_steward_with_history(options)
+            last_result = result
             if pretty and not quiet and stream_live:
                 stream_live.stop()
             if not pretty and not quiet:

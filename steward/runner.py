@@ -11,7 +11,16 @@ from .llm import build_client
 from .logger import HumanEntry, Logger
 from .system_prompt import build_system_prompt
 from .tools import discover_tools
-from .types import LLMClient, LLMResult, Message, StreamHandler, ToolCallDescriptor, ToolDefinition, ToolResult
+from .types import (
+    LLMClient,
+    LLMResult,
+    Message,
+    StreamHandler,
+    ToolCallDescriptor,
+    ToolDefinition,
+    ToolResult,
+    UsageStats,
+)
 from .utils import safe_json
 
 
@@ -43,6 +52,7 @@ class RunnerResult:
     response: Optional[str]
     messages: List[Message]  # Full conversation history
     last_response_id: Optional[str] = None  # For Responses API conversation chaining
+    usage_summary: Optional[UsageStats] = None  # Aggregated token/cache stats for session summary
 
 
 PLAN_MODE_PREFIX = "[[PLAN]]"
@@ -152,6 +162,7 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
 
     # Track response_id for Responses API conversation chaining
     last_response_id = options.previous_response_id
+    usage_totals: Optional[UsageStats] = None
 
     for step in range(limit):
         try:
@@ -174,6 +185,10 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
         if response.get("response_id"):
             last_response_id = response.get("response_id")
 
+        usage = response.get("usage")
+        if usage:
+            usage_totals = _merge_usage(usage_totals, usage)
+
         logger.json(
             {
                 "type": "model_response",
@@ -186,7 +201,6 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
         )
 
         # Log cache statistics if available (helps debug prompt caching effectiveness)
-        usage = response.get("usage")
         if usage:
             cached = usage.get("cached_tokens", 0)
             prompt = usage.get("prompt_tokens", 0)
@@ -226,10 +240,15 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
             if not options.stream_handler:
                 logger.human(HumanEntry(title="model", body=response.get("content"), variant="model"))
             messages.append({"role": "assistant", "content": response.get("content")})
-            return RunnerResult(response=response.get("content"), messages=messages, last_response_id=last_response_id)
+            return RunnerResult(
+                response=response.get("content"),
+                messages=messages,
+                last_response_id=last_response_id,
+                usage_summary=usage_totals,
+            )
 
     print("Reached max steps without final response")
-    return RunnerResult(response=None, messages=messages, last_response_id=last_response_id)
+    return RunnerResult(response=None, messages=messages, last_response_id=last_response_id, usage_summary=usage_totals)
 
 
 async def execute_tools_parallel(
@@ -330,6 +349,15 @@ async def call_model_with_policies(
         raise RuntimeError("Unknown model error")
     finally:
         stop_spinner()
+
+
+def _merge_usage(total: Optional[UsageStats], usage: UsageStats) -> UsageStats:
+    """Aggregate usage stats across multiple model calls."""
+    if total is None:
+        total = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "cached_tokens": 0}
+    for key in ("prompt_tokens", "completion_tokens", "total_tokens", "cached_tokens"):
+        total[key] = total.get(key, 0) + int(usage.get(key, 0) or 0)
+    return total
 
 
 def format_tool_calls(calls: List[ToolCallDescriptor]) -> str:
