@@ -97,3 +97,27 @@ def env_list(name: str) -> list[str]:
     raw = getenv(name, "")
     parts = [part.strip() for part in raw.split(",")]
     return [part for part in parts if part]
+
+
+def is_o_series_model(model: str) -> bool:
+    """Check if model is an o-series (reasoning) model that uses developer role.
+
+    O-series models (o1, o3, o4, etc.) use 'developer' role instead of 'system'.
+    This includes Azure deployments that may have custom names but contain 'o1', 'o3', etc.
+    """
+    model_lower = model.lower()
+    # Match o1, o3, o4 patterns (standalone or with suffixes like o1-mini, o4-mini)
+    # Also match gpt-5 series which uses developer role
+    o_patterns = ("o1", "o3", "o4", "gpt-5")
+    for pattern in o_patterns:
+        if pattern in model_lower:
+            return True
+    return False
+
+
+def get_system_role(model: str) -> str:
+    """Get the appropriate role for system instructions based on model.
+
+    Returns 'developer' for o-series models, 'system' for others.
+    """
+    return "developer" if is_o_series_model(model) else "system"

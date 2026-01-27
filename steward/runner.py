@@ -6,7 +6,7 @@ import inspect
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional
 
-from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, detect_provider
+from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, detect_provider, get_system_role
 from .llm import build_client
 from .logger import HumanEntry, Logger
 from .system_prompt import build_system_prompt
@@ -99,6 +99,9 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
         init_session(options.session_id)
         session_context = get_session_context(options.session_id)
 
+    # Determine the system role based on model (developer for o-series, system for others)
+    system_role = get_system_role(model)
+
     # Use existing conversation history or start fresh
     if options.conversation_history:
         messages = list(options.conversation_history)  # Copy to avoid mutation
@@ -139,7 +142,7 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
                 plan_mode=plan_mode,
                 skill_context=skill_context,
             )
-        messages.append({"role": "system", "content": system_text})
+        messages.append({"role": system_role, "content": system_text})
         messages.append({"role": "user", "content": prompt})
 
     limit = options.max_steps or DEFAULT_MAX_STEPS

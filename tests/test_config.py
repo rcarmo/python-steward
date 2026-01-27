@@ -1,6 +1,8 @@
 """Tests for config module."""
 from __future__ import annotations
 
+import pytest
+
 
 def test_env_int_valid(monkeypatch):
     from steward.config import env_int
@@ -112,3 +114,35 @@ def test_detect_provider_azure_incomplete(monkeypatch):
     monkeypatch.delenv("STEWARD_AZURE_OPENAI_KEY", raising=False)
     monkeypatch.delenv("STEWARD_AZURE_OPENAI_DEPLOYMENT", raising=False)
     assert detect_provider() == "echo"
+
+
+@pytest.mark.parametrize("model,expected", [
+    ("o1-mini", True),
+    ("o1-preview", True),
+    ("o3-mini", True),
+    ("o4-mini", True),
+    ("gpt-5-mini", True),
+    ("gpt-5", True),
+    ("gpt-4o", False),  # 4o is not o-series, it's GPT-4 Omni
+    ("gpt-4-turbo", False),
+    ("gpt-3.5-turbo", False),
+    ("claude-3-opus", False),
+    ("my-custom-o1-deployment", True),  # Azure custom name with o1
+])
+def test_is_o_series_model(model, expected):
+    from steward.config import is_o_series_model
+
+    assert is_o_series_model(model) == expected
+
+
+@pytest.mark.parametrize("model,expected_role", [
+    ("o1-mini", "developer"),
+    ("gpt-5-mini", "developer"),
+    ("gpt-4-turbo", "system"),
+    ("gpt-3.5-turbo", "system"),
+    ("claude-3-opus", "system"),
+])
+def test_get_system_role(model, expected_role):
+    from steward.config import get_system_role
+
+    assert get_system_role(model) == expected_role

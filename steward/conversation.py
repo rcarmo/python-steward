@@ -99,10 +99,10 @@ def truncate_history(
     # Reserve tokens for response
     budget = max_tokens - RESPONSE_RESERVE_TOKENS
 
-    # Always keep system prompt if present
+    # Always keep system/developer prompt if present
     system_msg = None
     other_messages = messages
-    if messages and messages[0].get("role") == "system":
+    if messages and messages[0].get("role") in ("system", "developer"):
         system_msg = messages[0]
         other_messages = messages[1:]
 
@@ -164,10 +164,10 @@ def compact_history(
     if not messages:
         return messages, ""
 
-    # Separate system prompt
+    # Separate system/developer prompt (first message with either role)
     system_msg = None
     other_messages = messages
-    if messages and messages[0].get("role") == "system":
+    if messages and messages[0].get("role") in ("system", "developer"):
         system_msg = messages[0]
         other_messages = messages[1:]
 
@@ -223,9 +223,10 @@ def compact_history(
     if system_msg:
         result.append(system_msg)
 
-    # Add summary as a system message if we have one
+    # Add summary using same role as system message (developer or system)
     if summary:
-        result.append({"role": "system", "content": summary})
+        summary_role = system_msg.get("role", "system") if system_msg else "system"
+        result.append({"role": summary_role, "content": summary})
 
     # Add recent messages
     for group in recent_groups:
