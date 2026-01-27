@@ -34,6 +34,7 @@ class RunnerOptions:
     conversation_history: Optional[List[Message]] = None  # For multi-turn conversations
     max_history_tokens: Optional[int] = None  # Token limit for conversation history
     stream_handler: Optional[StreamHandler] = None
+    previous_response_id: Optional[str] = None  # For Responses API conversation chaining
 
 
 @dataclass
@@ -41,6 +42,7 @@ class RunnerResult:
     """Result from run_steward including conversation history for continuation."""
     response: Optional[str]
     messages: List[Message]  # Full conversation history
+    last_response_id: Optional[str] = None  # For Responses API conversation chaining
 
 
 PLAN_MODE_PREFIX = "[[PLAN]]"
@@ -148,6 +150,9 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
     limit = options.max_steps or DEFAULT_MAX_STEPS
     retry_limit = options.retries or 0
 
+    # Track response_id for Responses API conversation chaining
+    last_response_id = options.previous_response_id
+
     for step in range(limit):
         try:
             response = await call_model_with_policies(
@@ -157,12 +162,17 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
                 logger=logger,
                 tools=tool_definitions,
                 stream_handler=options.stream_handler,
+                previous_response_id=last_response_id,
             )
         except Exception as err:  # noqa: BLE001
             message = str(err)
             logger.human(HumanEntry(title="model", body=f"step {step} failed: {message}", variant="error"))
             logger.json({"type": "model_error", "step": step, "error": message, "fatal": True})
-            return RunnerResult(response=None, messages=messages)
+            return RunnerResult(response=None, messages=messages, last_response_id=last_response_id)
+
+        # Update response_id for next iteration (Responses API chaining)
+        if response.get("response_id"):
+            last_response_id = response.get("response_id")
 
         logger.json(
             {
@@ -216,10 +226,10 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
             if not options.stream_handler:
                 logger.human(HumanEntry(title="model", body=response.get("content"), variant="model"))
             messages.append({"role": "assistant", "content": response.get("content")})
-            return RunnerResult(response=response.get("content"), messages=messages)
+            return RunnerResult(response=response.get("content"), messages=messages, last_response_id=last_response_id)
 
     print("Reached max steps without final response")
-    return RunnerResult(response=None, messages=messages)
+    return RunnerResult(response=None, messages=messages, last_response_id=last_response_id)
 
 
 async def execute_tools_parallel(
@@ -293,6 +303,7 @@ async def call_model_with_policies(
     logger: Logger,
     tools: List[ToolDefinition],
     stream_handler: Optional[StreamHandler] = None,
+    previous_response_id: Optional[str] = None,
 ) -> LLMResult:
     # Only show spinner if not streaming (streaming has its own UI)
     stop_spinner = logger.start_spinner() if not stream_handler else lambda: None
@@ -301,7 +312,7 @@ async def call_model_with_policies(
         last_error: Optional[Exception] = None
         for attempt in range(1, attempts + 1):
             try:
-                result = await client.generate(messages, tools, stream_handler=stream_handler)
+                result = await client.generate(messages, tools, stream_handler=stream_handler, previous_response_id=previous_response_id)
                 if attempt > 1:
                     logger.human(HumanEntry(title="model", body=f"retry {attempt} succeeded", variant="model"))
                     logger.json({"type": "model_retry_success", "attempt": attempt})

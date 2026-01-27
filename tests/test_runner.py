@@ -119,6 +119,27 @@ def test_synthesize_meta_tool_empty_response():
     assert "no synthesis" in output.lower()
 
 
+def test_runner_result_has_response_id():
+    from steward.runner import RunnerResult
+
+    result = RunnerResult(
+        response="test",
+        messages=[],
+        last_response_id="resp_123"
+    )
+    assert result.last_response_id == "resp_123"
+
+
+def test_runner_options_has_previous_response_id():
+    from steward.runner import RunnerOptions
+
+    options = RunnerOptions(
+        prompt="test",
+        previous_response_id="resp_456"
+    )
+    assert options.previous_response_id == "resp_456"
+
+
 def test_runner_options():
     from steward.runner import RunnerOptions
 

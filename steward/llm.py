@@ -21,6 +21,7 @@ class EchoClient:
         messages: List[Message],
         tools: Optional[List[ToolDefinition]] = None,
         stream_handler: Optional[Union[StreamHandler, AsyncStreamHandler]] = None,
+        previous_response_id: Optional[str] = None,  # noqa: ARG002
     ) -> LLMResult:  # noqa: ARG002
         last_user = next((msg for msg in reversed(messages) if msg.get("role") == "user"), None)
         content = f"Echo: {last_user.get('content', '')}" if last_user else "Echo"
@@ -28,14 +29,15 @@ class EchoClient:
             result = stream_handler(content, True)
             if hasattr(result, "__await__"):
                 await result
-        return {"content": content}
+        return {"content": content, "response_id": "echo-123"}
 
 
 class OpenAIClient:
-    def __init__(self, model: str, api_key: str, base_url: Optional[str] = None, default_query: Optional[Dict[str, str]] = None, timeout_ms: Optional[int] = None) -> None:
+    def __init__(self, model: str, api_key: str, base_url: Optional[str] = None, default_query: Optional[Dict[str, str]] = None, timeout_ms: Optional[int] = None, use_responses_api: bool = False) -> None:
         if not api_key:
             raise ValueError("STEWARD_OPENAI_API_KEY (or Azure key) is required for this provider")
         self.model = model
+        self.use_responses_api = use_responses_api
         timeout = timeout_ms / 1000.0 if timeout_ms else None
         self.client = AsyncOpenAI(api_key=api_key, base_url=base_url, default_query=default_query, timeout=timeout)
 
@@ -44,7 +46,78 @@ class OpenAIClient:
         messages: List[Message],
         tools: Optional[List[ToolDefinition]] = None,
         stream_handler: Optional[Union[StreamHandler, AsyncStreamHandler]] = None,
+        previous_response_id: Optional[str] = None,
     ) -> LLMResult:
+        # Use Responses API if enabled and we have a previous_response_id or want to start a chain
+        if self.use_responses_api:
+            return await self._generate_responses_api(messages, tools, stream_handler, previous_response_id)
+        return await self._generate_chat_completions(messages, tools, stream_handler)
+
+    async def _generate_responses_api(
+        self,
+        messages: List[Message],
+        tools: Optional[List[ToolDefinition]] = None,
+        stream_handler: Optional[Union[StreamHandler, AsyncStreamHandler]] = None,
+        previous_response_id: Optional[str] = None,
+    ) -> LLMResult:
+        """Generate using the Responses API with conversation chaining."""
+        # Extract system/developer instructions and user input
+        instructions = None
+        user_input = None
+        for msg in messages:
+            if msg.get("role") in ("system", "developer"):
+                instructions = msg.get("content")
+            elif msg.get("role") == "user":
+                user_input = msg.get("content")
+
+        if not user_input:
+            user_input = ""
+
+        # Build request kwargs
+        kwargs: Dict[str, Any] = {
+            "model": self.model,
+            "input": user_input,
+        }
+        if instructions:
+            kwargs["instructions"] = instructions
+        if previous_response_id:
+            kwargs["previous_response_id"] = previous_response_id
+        if tools:
+            kwargs["tools"] = [_to_responses_tool(t) for t in tools]
+
+        # Call Responses API
+        response = await self.client.responses.create(**kwargs)
+
+        # Extract response content and tool calls
+        content = getattr(response, "output_text", None)
+        response_id = getattr(response, "id", None)
+
+        # Handle streaming callback
+        if stream_handler and content:
+            result = stream_handler(content, True)
+            if hasattr(result, "__await__"):
+                await result
+
+        # Extract tool calls from response output
+        tool_calls = _extract_responses_tool_calls(response)
+
+        # Extract usage
+        usage = _extract_usage(response)
+
+        return {
+            "content": content,
+            "toolCalls": tool_calls,
+            "usage": usage,
+            "response_id": response_id,
+        }
+
+    async def _generate_chat_completions(
+        self,
+        messages: List[Message],
+        tools: Optional[List[ToolDefinition]] = None,
+        stream_handler: Optional[Union[StreamHandler, AsyncStreamHandler]] = None,
+    ) -> LLMResult:
+        """Generate using the Chat Completions API."""
         if stream_handler:
             stream = self.client.chat.completions.create(
                 model=self.model,
@@ -124,13 +197,17 @@ class OpenAIClient:
         return {"content": content, "toolCalls": tool_calls, "usage": usage}
 
 
-def build_client(provider: str, model: str, timeout_ms: Optional[int] = None) -> LLMClient:
+def build_client(provider: str, model: str, timeout_ms: Optional[int] = None, use_responses_api: bool = False) -> LLMClient:
     from os import getenv
+
+    # Check env var for Responses API preference
+    if getenv("STEWARD_USE_RESPONSES_API", "").lower() in ("1", "true", "yes"):
+        use_responses_api = True
 
     if provider == "openai":
         api_key = getenv("STEWARD_OPENAI_API_KEY") or getenv("OPENAI_API_KEY") or ""
         base_url = getenv("STEWARD_OPENAI_BASE_URL") or getenv("OPENAI_BASE_URL")
-        return OpenAIClient(model, api_key, base_url=base_url, timeout_ms=timeout_ms)
+        return OpenAIClient(model, api_key, base_url=base_url, timeout_ms=timeout_ms, use_responses_api=use_responses_api)
     if provider == "azure":
         endpoint = getenv("STEWARD_AZURE_OPENAI_ENDPOINT") or getenv("AZURE_OPENAI_ENDPOINT")
         api_key = getenv("STEWARD_AZURE_OPENAI_KEY") or getenv("AZURE_OPENAI_KEY")
@@ -139,7 +216,7 @@ def build_client(provider: str, model: str, timeout_ms: Optional[int] = None) ->
         if not endpoint or not api_key or not deployment:
             raise ValueError("Azure provider requires endpoint, key, and deployment (STEWARD_AZURE_OPENAI_ENDPOINT/KEY/DEPLOYMENT)")
         base_url = f"{endpoint.rstrip('/')}/openai/deployments/{deployment}"
-        return OpenAIClient(model, api_key, base_url=base_url, default_query={"api-version": api_version}, timeout_ms=timeout_ms)
+        return OpenAIClient(model, api_key, base_url=base_url, default_query={"api-version": api_version}, timeout_ms=timeout_ms, use_responses_api=use_responses_api)
     return EchoClient(model)
 
 
@@ -226,3 +303,38 @@ def _extract_usage(completion: Any) -> Optional[UsageStats]:
             stats["cached_tokens"] = cached
 
     return stats
+
+
+def _to_responses_tool(tool: ToolDefinition) -> Dict[str, Any]:
+    """Convert tool definition to Responses API format."""
+    return {
+        "type": "function",
+        "name": tool["name"],
+        "description": tool["description"],
+        "parameters": tool["parameters"],
+    }
+
+
+def _extract_responses_tool_calls(response: Any) -> Optional[List[ToolCallDescriptor]]:
+    """Extract tool calls from a Responses API response."""
+    output = getattr(response, "output", None)
+    if not output:
+        return None
+
+    results: List[ToolCallDescriptor] = []
+    # Responses API returns output as a list of items
+    if isinstance(output, list):
+        for item in output:
+            item_type = getattr(item, "type", None)
+            if item_type == "function_call":
+                call_id = getattr(item, "call_id", None) or getattr(item, "id", None) or ""
+                name = getattr(item, "name", "")
+                args_str = getattr(item, "arguments", "{}")
+                try:
+                    args = json.loads(args_str) if isinstance(args_str, str) else args_str
+                except (TypeError, ValueError):
+                    args = {}
+                if name:
+                    results.append({"id": call_id, "name": name, "arguments": args})
+
+    return results if results else None

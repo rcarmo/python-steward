@@ -181,6 +181,57 @@ def test_openai_client_empty_choices(mock_openai):
     assert result["toolCalls"] is None
 
 
+def test_to_responses_tool():
+    from steward.llm import _to_responses_tool
+
+    tool = {
+        "name": "test_tool",
+        "description": "A test tool",
+        "parameters": {"type": "object", "properties": {"arg": {"type": "string"}}}
+    }
+
+    result = _to_responses_tool(tool)
+    assert result["type"] == "function"
+    assert result["name"] == "test_tool"
+    assert result["description"] == "A test tool"
+
+
+def test_extract_responses_tool_calls_none():
+    from steward.llm import _extract_responses_tool_calls
+
+    assert _extract_responses_tool_calls(None) is None
+    assert _extract_responses_tool_calls(type("R", (), {"output": None})()) is None
+
+
+def test_extract_responses_tool_calls():
+    from steward.llm import _extract_responses_tool_calls
+
+    # Mock a Responses API response with function calls
+    output = [
+        type("Item", (), {
+            "type": "function_call",
+            "call_id": "call_123",
+            "name": "view",
+            "arguments": '{"path": "test.py"}'
+        })()
+    ]
+    response = type("R", (), {"output": output})()
+
+    result = _extract_responses_tool_calls(response)
+    assert result is not None
+    assert len(result) == 1
+    assert result[0]["name"] == "view"
+    assert result[0]["arguments"]["path"] == "test.py"
+
+
+def test_echo_client_returns_response_id():
+    from steward.llm import build_client
+
+    client = build_client("echo", "test-model")
+    result = asyncio.run(client.generate([{"role": "user", "content": "test"}]))
+    assert result.get("response_id") == "echo-123"
+
+
 @patch('steward.llm.AsyncOpenAI')
 def test_openai_stream_tool_calls_none_keeps_previous(mock_openai):
     import asyncio

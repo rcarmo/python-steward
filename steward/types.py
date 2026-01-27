@@ -49,6 +49,7 @@ class LLMResult(TypedDict, total=False):
     content: Optional[str]
     toolCalls: Optional[List[ToolCallDescriptor]]
     usage: Optional[UsageStats]  # Token usage including cache stats
+    response_id: Optional[str]  # For Responses API: chain conversations with previous_response_id
 
 StreamHandler = Callable[[str, bool], None]
 AsyncStreamHandler = Callable[[str, bool], Awaitable[None]]
@@ -60,6 +61,7 @@ class LLMClient(Protocol):
         messages: List[Message],
         tools: Optional[List[ToolDefinition]] = None,
         stream_handler: Optional[Union[StreamHandler, AsyncStreamHandler]] = None,
+        previous_response_id: Optional[str] = None,  # For Responses API conversation chaining
     ) -> LLMResult:
         ...
 
