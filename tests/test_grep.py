@@ -3,50 +3,45 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
-def test_grep_finds_matches(tool_handlers, sandbox: Path):
-    (sandbox / "a.txt").write_text("hello world\nfoo bar\n", encoding="utf8")
-    (sandbox / "b.txt").write_text("another hello\n", encoding="utf8")
-    result = tool_handlers["grep"]({"pattern": "hello"})
-    assert "a.txt" in result["output"]
-    assert "b.txt" in result["output"]
+import pytest
 
 
-def test_grep_output_mode_content(tool_handlers, sandbox: Path):
-    (sandbox / "test.py").write_text("def foo():\n    return 42\n", encoding="utf8")
-    result = tool_handlers["grep"]({"pattern": "foo", "output_mode": "content", "show_line_numbers": True})
-    assert "test.py:1:" in result["output"]
-    assert "def foo" in result["output"]
+@pytest.fixture
+def grep_files(sandbox: Path):
+    """Create test files for grep tests."""
+    def _create(files: dict[str, str]):
+        for name, content in files.items():
+            (sandbox / name).write_text(content, encoding="utf8")
+    return _create
 
 
-def test_grep_output_mode_count(tool_handlers, sandbox: Path):
-    (sandbox / "test.txt").write_text("foo\nfoo\nbar\nfoo\n", encoding="utf8")
-    result = tool_handlers["grep"]({"pattern": "foo", "output_mode": "count"})
-    assert "test.txt:3" in result["output"]
-
-
-def test_grep_glob_filter(tool_handlers, sandbox: Path):
-    (sandbox / "code.py").write_text("hello python\n", encoding="utf8")
-    (sandbox / "code.js").write_text("hello javascript\n", encoding="utf8")
-    result = tool_handlers["grep"]({"pattern": "hello", "glob": "*.py"})
-    assert "code.py" in result["output"]
-    assert "code.js" not in result["output"]
-
-
-def test_grep_case_insensitive(tool_handlers, sandbox: Path):
-    (sandbox / "test.txt").write_text("Hello World\n", encoding="utf8")
-    result = tool_handlers["grep"]({"pattern": "hello", "case_insensitive": True})
-    assert "test.txt" in result["output"]
-
-
-def test_grep_context(tool_handlers, sandbox: Path):
-    (sandbox / "test.txt").write_text("line1\nline2\nmatch\nline4\nline5\n", encoding="utf8")
-    result = tool_handlers["grep"]({"pattern": "match", "output_mode": "content", "context_both": 1})
-    assert "line2" in result["output"]
-    assert "line4" in result["output"]
-
-
-def test_grep_no_matches(tool_handlers, sandbox: Path):
-    (sandbox / "test.txt").write_text("nothing here\n", encoding="utf8")
-    result = tool_handlers["grep"]({"pattern": "xyz123"})
-    assert "No matches" in result["output"]
+@pytest.mark.parametrize("files,pattern,args,expected,not_expected", [
+    # Basic match
+    ({"a.txt": "hello world\nfoo bar\n", "b.txt": "another hello\n"},
+     "hello", {}, ["a.txt", "b.txt"], []),
+    # Output mode content with line numbers
+    ({"test.py": "def foo():\n    return 42\n"},
+     "foo", {"output_mode": "content", "show_line_numbers": True}, ["test.py:1:", "def foo"], []),
+    # Output mode count
+    ({"test.txt": "foo\nfoo\nbar\nfoo\n"},
+     "foo", {"output_mode": "count"}, ["test.txt:3"], []),
+    # Glob filter
+    ({"code.py": "hello python\n", "code.js": "hello javascript\n"},
+     "hello", {"glob": "*.py"}, ["code.py"], ["code.js"]),
+    # Case insensitive
+    ({"test.txt": "Hello World\n"},
+     "hello", {"case_insensitive": True}, ["test.txt"], []),
+    # Context
+    ({"test.txt": "line1\nline2\nmatch\nline4\nline5\n"},
+     "match", {"output_mode": "content", "context_both": 1}, ["line2", "line4"], []),
+    # No matches
+    ({"test.txt": "nothing here\n"},
+     "xyz123", {}, ["No matches"], []),
+])
+def test_grep(tool_handlers, sandbox: Path, grep_files, files, pattern, args, expected, not_expected):
+    grep_files(files)
+    result = tool_handlers["grep"]({"pattern": pattern, **args})
+    for exp in expected:
+        assert exp in result["output"]
+    for nexp in not_expected:
+        assert nexp not in result["output"]

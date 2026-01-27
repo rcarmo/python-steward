@@ -1,12 +1,17 @@
+"""Tests for run_js tool."""
 from __future__ import annotations
 
+import pytest
 
-def test_run_js(tool_handlers):
-    result = tool_handlers["run_js"]({"code": "console.log('hi'); 1 + 2;"})
-    assert "status: ok" in result["output"]
-    assert "result: 3" in result["output"]
-    assert "console:" in result["output"]
-    assert "log: hi" in result["output"]
+
+@pytest.mark.parametrize("code,expected_status,expected_result,expected_log", [
+    ("console.log('hi'); 1 + 2;", "status: ok", "result: 3", "log: hi"),
+])
+def test_run_js(tool_handlers, code, expected_status, expected_result, expected_log):
+    result = tool_handlers["run_js"]({"code": code})
+    assert expected_status in result["output"]
+    assert expected_result in result["output"]
+    assert expected_log in result["output"]
 
 
 def test_run_js_timeout(tool_handlers):

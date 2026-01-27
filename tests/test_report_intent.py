@@ -1,7 +1,7 @@
 """Tests for report_intent tool."""
-import pytest
 
-from steward.tools.report_intent import get_current_intent, tool_report_intent as tool_handler
+from steward.tools.report_intent import get_current_intent
+from steward.tools.report_intent import tool_report_intent as tool_handler
 
 
 def test_report_intent_stores_intent():

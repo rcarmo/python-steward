@@ -124,6 +124,7 @@ def test_to_tool_calls_empty():
 @patch('steward.llm.AsyncOpenAI')
 def test_openai_client_empty_choices(mock_openai):
     import asyncio
+
     from steward.llm import OpenAIClient
 
     async def mock_create(**_kwargs):
@@ -140,6 +141,7 @@ def test_openai_client_empty_choices(mock_openai):
 @patch('steward.llm.AsyncOpenAI')
 def test_openai_stream_tool_calls_none_keeps_previous(mock_openai):
     import asyncio
+
     from steward.llm import OpenAIClient
 
     class Delta:

@@ -3,37 +3,38 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
-def test_glob_finds_files(tool_handlers, sandbox: Path):
-    (sandbox / "file1.py").write_text("", encoding="utf8")
-    (sandbox / "file2.py").write_text("", encoding="utf8")
-    (sandbox / "file.js").write_text("", encoding="utf8")
-    result = tool_handlers["glob"]({"pattern": "*.py"})
-    assert "file1.py" in result["output"]
-    assert "file2.py" in result["output"]
-    assert "file.js" not in result["output"]
+import pytest
 
 
-def test_glob_recursive(tool_handlers, sandbox: Path):
-    subdir = sandbox / "src"
-    subdir.mkdir()
-    (subdir / "main.py").write_text("", encoding="utf8")
-    (sandbox / "test.py").write_text("", encoding="utf8")
-    result = tool_handlers["glob"]({"pattern": "**/*.py"})
-    assert "src/main.py" in result["output"]
-    assert "test.py" in result["output"]
+@pytest.fixture
+def glob_files(sandbox: Path):
+    """Create test files for glob tests."""
+    def _create(files: list[str], subdirs: list[str] | None = None):
+        for subdir in (subdirs or []):
+            (sandbox / subdir).mkdir(parents=True, exist_ok=True)
+        for name in files:
+            (sandbox / name).write_text("", encoding="utf8")
+    return _create
 
 
-def test_glob_brace_expansion(tool_handlers, sandbox: Path):
-    (sandbox / "code.ts").write_text("", encoding="utf8")
-    (sandbox / "code.tsx").write_text("", encoding="utf8")
-    (sandbox / "code.js").write_text("", encoding="utf8")
-    result = tool_handlers["glob"]({"pattern": "*.{ts,tsx}"})
-    assert "code.ts" in result["output"]
-    assert "code.tsx" in result["output"]
-    assert "code.js" not in result["output"]
-
-
-def test_glob_no_matches(tool_handlers, sandbox: Path):
-    result = tool_handlers["glob"]({"pattern": "*.xyz"})
-    assert "No matching files" in result["output"]
+@pytest.mark.parametrize("files,subdirs,pattern,expected,not_expected", [
+    # Basic pattern
+    (["file1.py", "file2.py", "file.js"], None, "*.py",
+     ["file1.py", "file2.py"], ["file.js"]),
+    # Recursive pattern
+    (["test.py", "src/main.py"], ["src"], "**/*.py",
+     ["src/main.py", "test.py"], []),
+    # Brace expansion
+    (["code.ts", "code.tsx", "code.js"], None, "*.{ts,tsx}",
+     ["code.ts", "code.tsx"], ["code.js"]),
+    # No matches
+    ([], None, "*.xyz",
+     ["No matching files"], []),
+])
+def test_glob(tool_handlers, sandbox: Path, glob_files, files, subdirs, pattern, expected, not_expected):
+    glob_files(files, subdirs)
+    result = tool_handlers["glob"]({"pattern": pattern})
+    for exp in expected:
+        assert exp in result["output"]
+    for nexp in not_expected:
+        assert nexp not in result["output"]

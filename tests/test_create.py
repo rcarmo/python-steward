@@ -6,25 +6,21 @@ from pathlib import Path
 import pytest
 
 
-def test_create_file(tool_handlers, sandbox: Path):
-    result = tool_handlers["create"]({"path": "new.txt", "file_text": "hello world"})
+@pytest.mark.parametrize("path,content,expected_content", [
+    ("new.txt", "hello world", "hello world"),
+    ("a/b/c/file.txt", "nested", "nested"),
+    ("empty.txt", None, ""),
+])
+def test_create_file(tool_handlers, sandbox: Path, path, content, expected_content):
+    args = {"path": path}
+    if content is not None:
+        args["file_text"] = content
+    result = tool_handlers["create"](args)
     assert "Created" in result["output"]
-    assert (sandbox / "new.txt").read_text() == "hello world"
-
-
-def test_create_with_nested_dirs(tool_handlers, sandbox: Path):
-    result = tool_handlers["create"]({"path": "a/b/c/file.txt", "file_text": "nested"})
-    assert "Created" in result["output"]
-    assert (sandbox / "a/b/c/file.txt").read_text() == "nested"
+    assert (sandbox / path).read_text() == expected_content
 
 
 def test_create_fails_if_exists(tool_handlers, sandbox: Path):
     (sandbox / "exists.txt").write_text("original", encoding="utf8")
     with pytest.raises(ValueError, match="already exists"):
         tool_handlers["create"]({"path": "exists.txt", "file_text": "new"})
-
-
-def test_create_empty_file(tool_handlers, sandbox: Path):
-    result = tool_handlers["create"]({"path": "empty.txt"})
-    assert "Created" in result["output"]
-    assert (sandbox / "empty.txt").read_text() == ""

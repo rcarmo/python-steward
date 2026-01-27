@@ -52,6 +52,7 @@ def test_summarize_plan_args():
 
 def test_synthesize_meta_tool():
     import asyncio
+
     from steward.logger import Logger
     from steward.runner import synthesize_meta_tool_async
 
@@ -75,6 +76,7 @@ def test_synthesize_meta_tool():
 
 def test_synthesize_meta_tool_error():
     import asyncio
+
     from steward.logger import Logger
     from steward.runner import synthesize_meta_tool_async
 
@@ -99,6 +101,7 @@ def test_synthesize_meta_tool_error():
 
 def test_synthesize_meta_tool_empty_response():
     import asyncio
+
     from steward.logger import Logger
     from steward.runner import synthesize_meta_tool_async
 

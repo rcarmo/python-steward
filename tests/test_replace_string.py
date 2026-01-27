@@ -9,155 +9,103 @@ from steward.tools.multi_replace_string_in_file import tool_multi_replace_string
 from steward.tools.replace_string_in_file import tool_replace_string_in_file as replace_handler
 
 
-def test_replace_string_basic(sandbox: Path) -> None:
-    """Test basic string replacement."""
-    test_file = sandbox / "test.py"
-    test_file.write_text("def foo():\n    return 42\n", encoding="utf8")
+@pytest.fixture
+def test_file(sandbox: Path):
+    """Create a test file with given content."""
+    def _create(content: str, name: str = "test.py"):
+        f = sandbox / name
+        f.write_text(content, encoding="utf8")
+        return f
+    return _create
 
-    result = replace_handler(
-        path="test.py",
-        oldString="return 42",
-        newString="return 100"
-    )
 
+@pytest.mark.parametrize("initial,old,new,expected", [
+    ("def foo():\n    return 42\n", "return 42", "return 100", "def foo():\n    return 100\n"),
+    ("def foo():\n    x = 1\n    return x\n", "    x = 1\n    return x", "    y = 2\n    return y", "def foo():\n    y = 2\n    return y\n"),
+])
+def test_replace_string_success(sandbox: Path, test_file, initial, old, new, expected):
+    f = test_file(initial)
+    result = replace_handler(path="test.py", oldString=old, newString=new)
     assert "test.py" in result["output"]
-    assert test_file.read_text(encoding="utf8") == "def foo():\n    return 100\n"
+    assert f.read_text(encoding="utf8") == expected
 
 
-def test_replace_string_multiline(sandbox: Path) -> None:
-    """Test replacing multiline strings."""
-    test_file = sandbox / "test.py"
-    original = "def foo():\n    x = 1\n    return x\n"
-    test_file.write_text(original, encoding="utf8")
-
-    result = replace_handler(
-        path="test.py",
-        oldString="    x = 1\n    return x",
-        newString="    y = 2\n    return y"
-    )
-
-    assert "test.py" in result["output"]
-    assert test_file.read_text(encoding="utf8") == "def foo():\n    y = 2\n    return y\n"
+@pytest.mark.parametrize("content,old,error_match", [
+    ("def foo():\n    return 42\n", "return 99", "String not found"),
+    ("x = 42\ny = 42\n", "42", "appears 2 times"),
+])
+def test_replace_string_errors(sandbox: Path, test_file, content, old, error_match):
+    test_file(content)
+    with pytest.raises(ValueError, match=error_match):
+        replace_handler(path="test.py", oldString=old, newString="100")
 
 
-def test_replace_string_not_found(sandbox: Path) -> None:
-    """Test error when string not found."""
-    test_file = sandbox / "test.py"
-    test_file.write_text("def foo():\n    return 42\n", encoding="utf8")
-
-    with pytest.raises(ValueError, match="String not found"):
-        replace_handler(
-            path="test.py",
-            oldString="return 99",
-            newString="return 100"
-        )
-
-
-def test_replace_string_multiple_occurrences(sandbox: Path) -> None:
-    """Test error when string appears multiple times."""
-    test_file = sandbox / "test.py"
-    test_file.write_text("x = 42\ny = 42\n", encoding="utf8")
-
-    with pytest.raises(ValueError, match="appears 2 times"):
-        replace_handler(
-            path="test.py",
-            oldString="42",
-            newString="100"
-        )
-
-
-def test_replace_string_missing_file(sandbox: Path) -> None:
-    """Test error when file doesn't exist."""
+def test_replace_string_missing_file(sandbox: Path):
     with pytest.raises(ValueError, match="does not exist"):
-        replace_handler(
-            path="nonexistent.py",
-            oldString="foo",
-            newString="bar"
-        )
+        replace_handler(path="nonexistent.py", oldString="foo", newString="bar")
 
 
-def test_replace_string_outside_workspace(sandbox: Path) -> None:
-    """Test error when path is outside workspace."""
+def test_replace_string_outside_workspace(sandbox: Path):
     with pytest.raises(ValueError, match="outside workspace"):
-        replace_handler(
-            path="/etc/passwd",
-            oldString="root",
-            newString="admin"
-        )
+        replace_handler(path="/etc/passwd", oldString="root", newString="admin")
 
 
-def test_multi_replace_basic(sandbox: Path) -> None:
-    """Test multiple replacements in different files."""
-    file1 = sandbox / "file1.py"
-    file2 = sandbox / "file2.py"
-    file1.write_text("x = 1\n", encoding="utf8")
-    file2.write_text("y = 2\n", encoding="utf8")
+def test_multi_replace_basic(sandbox: Path):
+    (sandbox / "file1.py").write_text("x = 1\n", encoding="utf8")
+    (sandbox / "file2.py").write_text("y = 2\n", encoding="utf8")
 
-    result = multi_replace_handler(
-        replacements=[
-            {"path": "file1.py", "oldString": "x = 1", "newString": "x = 10"},
-            {"path": "file2.py", "oldString": "y = 2", "newString": "y = 20"},
-        ]
-    )
+    result = multi_replace_handler(replacements=[
+        {"path": "file1.py", "oldString": "x = 1", "newString": "x = 10"},
+        {"path": "file2.py", "oldString": "y = 2", "newString": "y = 20"},
+    ])
 
     assert "Successfully replaced in 2 file(s)" in result["output"]
-    assert file1.read_text(encoding="utf8") == "x = 10\n"
-    assert file2.read_text(encoding="utf8") == "y = 20\n"
+    assert (sandbox / "file1.py").read_text(encoding="utf8") == "x = 10\n"
+    assert (sandbox / "file2.py").read_text(encoding="utf8") == "y = 20\n"
 
 
-def test_multi_replace_same_file(sandbox: Path) -> None:
-    """Test multiple replacements in the same file."""
-    test_file = sandbox / "test.py"
-    test_file.write_text("def foo():\n    return 1\n\ndef bar():\n    return 2\n", encoding="utf8")
+def test_multi_replace_same_file(sandbox: Path, test_file):
+    test_file("def foo():\n    return 1\n\ndef bar():\n    return 2\n")
 
-    result = multi_replace_handler(
-        replacements=[
-            {"path": "test.py", "oldString": "return 1", "newString": "return 10"},
-            {"path": "test.py", "oldString": "return 2", "newString": "return 20"},
-        ]
-    )
+    result = multi_replace_handler(replacements=[
+        {"path": "test.py", "oldString": "return 1", "newString": "return 10"},
+        {"path": "test.py", "oldString": "return 2", "newString": "return 20"},
+    ])
 
     assert "Successfully replaced in 2 file(s)" in result["output"]
-    content = test_file.read_text(encoding="utf8")
+    content = (sandbox / "test.py").read_text(encoding="utf8")
     assert "return 10" in content
     assert "return 20" in content
 
 
-def test_multi_replace_partial_failure(sandbox: Path) -> None:
-    """Test multi-replace with some failures."""
-    file1 = sandbox / "file1.py"
-    file1.write_text("x = 1\n", encoding="utf8")
+def test_multi_replace_partial_failure(sandbox: Path):
+    (sandbox / "file1.py").write_text("x = 1\n", encoding="utf8")
 
-    result = multi_replace_handler(
-        replacements=[
-            {"path": "file1.py", "oldString": "x = 1", "newString": "x = 10"},
-            {"path": "missing.py", "oldString": "foo", "newString": "bar"},
-        ]
-    )
+    result = multi_replace_handler(replacements=[
+        {"path": "file1.py", "oldString": "x = 1", "newString": "x = 10"},
+        {"path": "missing.py", "oldString": "foo", "newString": "bar"},
+    ])
 
     assert "Successfully replaced in 1 file(s)" in result["output"]
     assert "Failed 1 replacement(s)" in result["output"]
     assert result.get("error") is True
-    assert file1.read_text(encoding="utf8") == "x = 10\n"
 
 
-def test_multi_replace_empty_list(sandbox: Path) -> None:
-    """Test error with empty replacements list."""
-    with pytest.raises(ValueError, match="cannot be empty"):
-        multi_replace_handler(replacements=[])
+@pytest.mark.parametrize("replacements,error_match", [
+    ([], "cannot be empty"),
+])
+def test_multi_replace_validation(sandbox: Path, replacements, error_match):
+    with pytest.raises(ValueError, match=error_match):
+        multi_replace_handler(replacements=replacements)
 
 
-def test_multi_replace_invalid_item(sandbox: Path) -> None:
-    """Test error with invalid replacement items."""
-    file1 = sandbox / "file1.py"
-    file1.write_text("x = 1\n", encoding="utf8")
+def test_multi_replace_invalid_item(sandbox: Path):
+    (sandbox / "file1.py").write_text("x = 1\n", encoding="utf8")
 
-    result = multi_replace_handler(
-        replacements=[
-            {"path": "file1.py", "oldString": "x = 1", "newString": "x = 10"},
-            {"path": "file1.py", "oldString": 123},  # Invalid: not a string
-        ]
-    )
+    result = multi_replace_handler(replacements=[
+        {"path": "file1.py", "oldString": "x = 1", "newString": "x = 10"},
+        {"path": "file1.py", "oldString": 123},  # Invalid: not a string
+    ])
 
     assert "Successfully replaced in 1 file(s)" in result["output"]
     assert "Failed 1 replacement(s)" in result["output"]

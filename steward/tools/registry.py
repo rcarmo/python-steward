@@ -118,7 +118,7 @@ def _create_wrapper(handler: Callable) -> ToolHandler:
     if len(params) == 1 and params[0][0] == "args":
         return handler
 
-    def wrapper(args: Dict) -> Any:
+    def _build_kwargs(args: Dict) -> Dict:
         if args is None:
             args = {}
         kwargs = {}
@@ -129,11 +129,19 @@ def _create_wrapper(handler: Callable) -> ToolHandler:
             elif param.default != inspect.Parameter.empty:
                 kwargs[name] = param.default
             else:
-                # Required parameter is missing
                 missing.append(name)
         if missing:
             raise ValueError(f"'{', '.join(missing)}' {'is' if len(missing) == 1 else 'are'} required and must be provided")
-        return handler(**kwargs)
+        return kwargs
+
+    # Create async wrapper if handler is async
+    if inspect.iscoroutinefunction(handler):
+        async def async_wrapper(args: Dict) -> Any:
+            return await handler(**_build_kwargs(args))
+        return async_wrapper
+
+    def wrapper(args: Dict) -> Any:
+        return handler(**_build_kwargs(args))
 
     return wrapper
 

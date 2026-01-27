@@ -4,13 +4,13 @@ from __future__ import annotations
 import re
 from urllib.parse import unquote
 
-import requests
+import aiohttp
 
 from ..types import ToolResult
 from .shared import BROWSER_USER_AGENT, clear_status, env_cap, print_status
 
 
-def tool_web_search(query: str) -> ToolResult:
+async def tool_web_search(query: str) -> ToolResult:
     """AI-powered web search returning synthesized answers with citations.
 
     Args:
@@ -23,15 +23,16 @@ def tool_web_search(query: str) -> ToolResult:
 
     print_status(f"searching: {query[:60]}{'...' if len(query) > 60 else ''}")
     try:
-        response = requests.get(
-            "https://html.duckduckgo.com/html/",
-            params={"q": query},
-            headers={"User-Agent": BROWSER_USER_AGENT},
-            timeout=10,
-        )
-        response.raise_for_status()
-        html = response.text
-    except requests.RequestException as exc:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                "https://html.duckduckgo.com/html/",
+                params={"q": query},
+                headers={"User-Agent": BROWSER_USER_AGENT},
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as response:
+                response.raise_for_status()
+                html = await response.text()
+    except aiohttp.ClientError as exc:
         clear_status()
         return {"id": "web_search", "output": f"[error] Search failed: {exc}"}
     finally:

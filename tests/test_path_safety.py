@@ -1,3 +1,4 @@
+"""Tests for path safety."""
 from __future__ import annotations
 
 import os

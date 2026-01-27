@@ -1,38 +1,59 @@
+"""Tests for apply_patch tool."""
 from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 
-def test_apply_patch(tool_handlers, sandbox: Path):
-    file_path = sandbox / "patch.txt"
-    file_path.write_text("old\n", encoding="utf8")
-    patch = "\n".join(["--- a/patch.txt", "+++ b/patch.txt", "@@ -1 +1 @@", "-old", "+new", ""])
+
+@pytest.fixture
+def patch_file(sandbox: Path):
+    """Create a file and return a patch for it."""
+    def _create(filename: str, old: str, new: str):
+        (sandbox / filename).write_text(old + "\n", encoding="utf8")
+        return "\n".join([f"--- a/{filename}", f"+++ b/{filename}", "@@ -1 +1 @@", f"-{old}", f"+{new}", ""])
+    return _create
+
+
+def test_apply_patch(tool_handlers, sandbox: Path, patch_file):
+    patch = patch_file("patch.txt", "old", "new")
     result = tool_handlers["apply_patch"]({"path": "patch.txt", "patch": patch})
     assert "Patched patch.txt" in result["output"]
-    assert file_path.read_text(encoding="utf8").strip() == "new"
+    assert (sandbox / "patch.txt").read_text(encoding="utf8").strip() == "new"
 
 
-def test_dry_run_and_failure(tool_handlers, sandbox: Path):
-    file_path = sandbox / "dry.txt"
-    file_path.write_text("hello\n", encoding="utf8")
-    patch = "\n".join(["--- a/dry.txt", "+++ b/dry.txt", "@@ -1 +1 @@", "-hello", "+hi", ""])
-    dry = tool_handlers["apply_patch"]({"path": "dry.txt", "patch": patch, "dryRun": True})
-    assert "Dry-run OK" in dry["output"]
-    bad_patch = "\n".join(["--- a/dry.txt", "+++ b/dry.txt", "@@ -1 +1 @@", "-missing", "+oops", ""])
-    failed = tool_handlers["apply_patch"]({"path": "dry.txt", "patch": bad_patch})
-    assert failed.get("error") is True
+@pytest.mark.parametrize("dry_run,bad_patch,expected", [
+    (True, False, "Dry-run OK"),
+    (False, True, True),  # error flag
+])
+def test_apply_patch_modes(tool_handlers, sandbox: Path, patch_file, dry_run, bad_patch, expected):
+    patch = patch_file("dry.txt", "hello", "hi")
+    if bad_patch:
+        patch = "\n".join(["--- a/dry.txt", "+++ b/dry.txt", "@@ -1 +1 @@", "-missing", "+oops", ""])
+
+    args = {"path": "dry.txt", "patch": patch}
+    if dry_run:
+        args["dryRun"] = True
+
+    result = tool_handlers["apply_patch"](args)
+    if isinstance(expected, bool):
+        assert result.get("error") is expected
+    else:
+        assert expected in result["output"]
 
 
-def test_batch(tool_handlers, sandbox: Path):
+def test_apply_patch_batch(tool_handlers, sandbox: Path):
     (sandbox / "a.txt").write_text("a\n", encoding="utf8")
     (sandbox / "b.txt").write_text("b\n", encoding="utf8")
     patches = [
-        "\n".join(["--- a/a.txt", "+++ b/a.txt", "@@ -1 +1 @@", "-a", "+aa", ""]),
-        "\n".join(["--- a/b.txt", "+++ b/b.txt", "@@ -1 +1 @@", "-b", "+bb", ""]),
+        {"path": "a.txt", "patch": "\n".join(["--- a/a.txt", "+++ b/a.txt", "@@ -1 +1 @@", "-a", "+aa", ""])},
+        {"path": "b.txt", "patch": "\n".join(["--- a/b.txt", "+++ b/b.txt", "@@ -1 +1 @@", "-b", "+bb", ""])},
     ]
-    dry = tool_handlers["apply_patch"]({"patches": [{"path": "a.txt", "patch": patches[0]}, {"path": "b.txt", "patch": patches[1]}], "dryRun": True})
+
+    dry = tool_handlers["apply_patch"]({"patches": patches, "dryRun": True})
     assert "Dry-run OK for 2 file(s)" in dry["output"]
-    applied = tool_handlers["apply_patch"]({"patches": [{"path": "a.txt", "patch": patches[0]}, {"path": "b.txt", "patch": patches[1]}]})
+
+    applied = tool_handlers["apply_patch"]({"patches": patches})
     assert "Patched 2 file(s)" in applied["output"]
     assert (sandbox / "a.txt").read_text(encoding="utf8").strip() == "aa"
     assert (sandbox / "b.txt").read_text(encoding="utf8").strip() == "bb"

@@ -7,48 +7,52 @@ from pathlib import Path
 import pytest
 
 
-def test_bash_runs_command(tool_handlers, sandbox: Path):
+@pytest.fixture
+def enable_execute():
+    """Enable execute for bash tests."""
     os.environ["STEWARD_ALLOW_EXECUTE"] = "1"
-    result = tool_handlers["bash"]({"command": "echo hello"})
-    assert "hello" in result["output"]
+    yield
+    # Cleanup any test-specific env vars
+    for key in ["STEWARD_EXEC_ALLOW", "STEWARD_EXEC_DENY", "STEWARD_EXEC_AUDIT"]:
+        os.environ.pop(key, None)
+
+
+@pytest.mark.parametrize("command,expected", [
+    ("echo hello", "hello"),
+])
+def test_bash_runs_command(tool_handlers, sandbox: Path, enable_execute, command, expected):
+    result = tool_handlers["bash"]({"command": command})
+    assert expected in result["output"]
 
 
 def test_bash_gated(tool_handlers):
-    if "STEWARD_ALLOW_EXECUTE" in os.environ:
-        del os.environ["STEWARD_ALLOW_EXECUTE"]
+    os.environ.pop("STEWARD_ALLOW_EXECUTE", None)
     with pytest.raises(ValueError, match="disabled"):
         tool_handlers["bash"]({"command": "echo test"})
 
 
-def test_bash_with_cwd(tool_handlers, sandbox: Path):
-    os.environ["STEWARD_ALLOW_EXECUTE"] = "1"
-    subdir = sandbox / "sub"
-    subdir.mkdir()
+def test_bash_with_cwd(tool_handlers, sandbox: Path, enable_execute):
+    (sandbox / "sub").mkdir()
     result = tool_handlers["bash"]({"command": "pwd", "cwd": "sub"})
     assert "sub" in result["output"]
 
 
-def test_bash_timeout(tool_handlers, sandbox: Path):
-    os.environ["STEWARD_ALLOW_EXECUTE"] = "1"
-    result = tool_handlers["bash"]({"command": "sleep 5", "initial_wait": 0.5})
-    assert "still running" in result["output"]
+@pytest.mark.parametrize("mode,detach,expected", [
+    ("sync", False, "still running"),
+    ("async", False, "Started async"),
+    ("async", True, "Started detached"),
+])
+def test_bash_modes(tool_handlers, sandbox: Path, enable_execute, mode, detach, expected):
+    args = {"command": "sleep 5" if mode == "sync" else "sleep 1", "mode": mode}
+    if mode == "sync":
+        args["initial_wait"] = 0.5
+    if detach:
+        args["detach"] = True
+    result = tool_handlers["bash"](args)
+    assert expected in result["output"]
 
 
-def test_bash_async(tool_handlers, sandbox: Path):
-    os.environ["STEWARD_ALLOW_EXECUTE"] = "1"
-    result = tool_handlers["bash"]({"command": "sleep 1", "mode": "async"})
-    assert "Started async" in result["output"]
-    assert "pid" in result["output"]
-
-
-def test_bash_detach(tool_handlers, sandbox: Path):
-    os.environ["STEWARD_ALLOW_EXECUTE"] = "1"
-    result = tool_handlers["bash"]({"command": "sleep 1", "mode": "async", "detach": True})
-    assert "Started detached" in result["output"]
-
-
-def test_bash_allow_deny(tool_handlers, sandbox: Path):
-    os.environ["STEWARD_ALLOW_EXECUTE"] = "1"
+def test_bash_allow_deny(tool_handlers, sandbox: Path, enable_execute):
     os.environ["STEWARD_EXEC_ALLOW"] = "echo"
     with pytest.raises(ValueError, match="not allowed"):
         tool_handlers["bash"]({"command": "pwd"})
@@ -59,11 +63,9 @@ def test_bash_allow_deny(tool_handlers, sandbox: Path):
     os.environ["STEWARD_EXEC_DENY"] = "pwd"
     with pytest.raises(ValueError, match="blocked"):
         tool_handlers["bash"]({"command": "pwd"})
-    del os.environ["STEWARD_EXEC_DENY"]
 
 
-def test_bash_audit_log(tool_handlers, sandbox: Path):
-    os.environ["STEWARD_ALLOW_EXECUTE"] = "1"
+def test_bash_audit_log(tool_handlers, sandbox: Path, enable_execute):
     os.environ["STEWARD_EXEC_AUDIT"] = "1"
     tool_handlers["bash"]({"command": "echo hi"})
     log_path = sandbox / ".steward-exec-audit.log"

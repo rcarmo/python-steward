@@ -1,45 +1,88 @@
 """Tests for web_search tool."""
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+import pytest
+
+from steward.tools.web_search import tool_web_search
 
 
-@patch("steward.tools.web_search.requests.get")
-def test_web_search_returns_meta_tool(mock_get, tool_handlers, sandbox: Path):
-    # Mock DuckDuckGo response with result
-    mock_response = MagicMock()
-    mock_response.text = '''
-    <div class="result">
-        <a class="result__a" href="https://example.com">Example Title</a>
-        <a class="result__snippet">This is the snippet text.</a>
-    </div>
-    '''
-    mock_response.raise_for_status = MagicMock()
-    mock_get.return_value = mock_response
+class MockResponse:
+    """Mock aiohttp response."""
+    def __init__(self, text: str):
+        self._text = text
 
-    result = tool_handlers["web_search"]({"query": "test query"})
+    async def text(self):
+        return self._text
 
-    # Should return meta_prompt for LLM synthesis
-    assert "meta_prompt" in result
-    assert "test query" in result["meta_prompt"]
+    def raise_for_status(self):
+        pass
 
 
-@patch("steward.tools.web_search.requests.get")
-def test_web_search_no_results(mock_get, tool_handlers, sandbox: Path):
-    mock_response = MagicMock()
-    mock_response.text = "<html><body>No results</body></html>"
-    mock_response.raise_for_status = MagicMock()
-    mock_get.return_value = mock_response
+class MockClientSession:
+    """Mock aiohttp ClientSession."""
+    def __init__(self, response_text: str = "", raise_error: Exception | None = None):
+        self._response_text = response_text
+        self._raise_error = raise_error
 
-    result = tool_handlers["web_search"]({"query": "xyznonexistent123"})
-    assert "No results found" in result["output"]
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        pass
+
+    def get(self, *args, **kwargs):
+        return MockContextManager(self._response_text, self._raise_error)
 
 
-@patch("steward.tools.web_search.requests.get")
-def test_web_search_network_error(mock_get, tool_handlers, sandbox: Path):
-    import requests
-    mock_get.side_effect = requests.RequestException("Network error")
+class MockContextManager:
+    """Mock context manager for aiohttp get."""
+    def __init__(self, response_text: str, raise_error: Exception | None):
+        self._response_text = response_text
+        self._raise_error = raise_error
 
-    result = tool_handlers["web_search"]({"query": "test"})
+    async def __aenter__(self):
+        if self._raise_error:
+            raise self._raise_error
+        return MockResponse(self._response_text)
+
+    async def __aexit__(self, *args):
+        pass
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("query,html,expected_in_output", [
+    (
+        "test query",
+        '''<div class="result">
+            <a class="result__a" href="https://example.com">Example Title</a>
+            <a class="result__snippet">This is the snippet text.</a>
+        </div>''',
+        "meta_prompt",
+    ),
+    (
+        "xyznonexistent123",
+        "<html><body>No results</body></html>",
+        "No results found",
+    ),
+])
+async def test_web_search_results(monkeypatch, query, html, expected_in_output):
+    monkeypatch.setattr("steward.tools.web_search.aiohttp.ClientSession", lambda: MockClientSession(html))
+
+    result = await tool_web_search(query)
+
+    if expected_in_output == "meta_prompt":
+        assert "meta_prompt" in result
+        assert query in result["meta_prompt"]
+    else:
+        assert expected_in_output in result["output"]
+
+
+@pytest.mark.asyncio
+async def test_web_search_network_error(monkeypatch):
+    import aiohttp
+    monkeypatch.setattr("steward.tools.web_search.aiohttp.ClientSession",
+                        lambda: MockClientSession(raise_error=aiohttp.ClientError("Network error")))
+
+    result = await tool_web_search("test")
     assert "[error]" in result["output"]
+
