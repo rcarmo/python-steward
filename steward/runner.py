@@ -175,6 +175,15 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
             }
         )
 
+        # Log cache statistics if available (helps debug prompt caching effectiveness)
+        usage = response.get("usage")
+        if usage:
+            cached = usage.get("cached_tokens", 0)
+            prompt = usage.get("prompt_tokens", 0)
+            if cached > 0 and prompt > 0:
+                cache_pct = int(100 * cached / prompt)
+                logger.json({"type": "cache_stats", "cached_tokens": cached, "prompt_tokens": prompt, "cache_pct": cache_pct})
+
         tool_calls = response.get("toolCalls") or []
         # Filter out invalid tool calls (missing name)
         tool_calls = [call for call in tool_calls if call.get("name")]

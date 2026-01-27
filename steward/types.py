@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Awaitable, Callable, Dict, List, Literal, Optional, Protocol, TypedDict, Union
 
-Role = Literal["system", "user", "assistant", "tool"]
+Role = Literal["system", "developer", "user", "assistant", "tool"]
 
 
 class ToolCallDescriptor(TypedDict):
@@ -37,9 +37,18 @@ class ToolResult(TypedDict, total=False):
     next_tool: List[str]  # Recommended tools to call next
 
 
+class UsageStats(TypedDict, total=False):
+    """Token usage statistics from LLM API response."""
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    cached_tokens: int  # Tokens served from prompt cache (cost reduction)
+
+
 class LLMResult(TypedDict, total=False):
     content: Optional[str]
     toolCalls: Optional[List[ToolCallDescriptor]]
+    usage: Optional[UsageStats]  # Token usage including cache stats
 
 StreamHandler = Callable[[str, bool], None]
 AsyncStreamHandler = Callable[[str, bool], Awaitable[None]]

@@ -121,6 +121,49 @@ def test_to_tool_calls_empty():
     assert _to_tool_calls([]) is None
 
 
+def test_extract_usage_none():
+    from steward.llm import _extract_usage
+
+    assert _extract_usage(None) is None
+    assert _extract_usage(type("C", (), {"usage": None})()) is None
+
+
+def test_extract_usage_basic():
+    from steward.llm import _extract_usage
+
+    completion = type("C", (), {
+        "usage": type("U", (), {
+            "prompt_tokens": 100,
+            "completion_tokens": 50,
+            "total_tokens": 150,
+            "prompt_tokens_details": None
+        })()
+    })()
+
+    result = _extract_usage(completion)
+    assert result["prompt_tokens"] == 100
+    assert result["completion_tokens"] == 50
+    assert result["total_tokens"] == 150
+    assert "cached_tokens" not in result
+
+
+def test_extract_usage_with_cache():
+    from steward.llm import _extract_usage
+
+    completion = type("C", (), {
+        "usage": type("U", (), {
+            "prompt_tokens": 1000,
+            "completion_tokens": 50,
+            "total_tokens": 1050,
+            "prompt_tokens_details": type("D", (), {"cached_tokens": 800})()
+        })()
+    })()
+
+    result = _extract_usage(completion)
+    assert result["prompt_tokens"] == 1000
+    assert result["cached_tokens"] == 800
+
+
 @patch('steward.llm.AsyncOpenAI')
 def test_openai_client_empty_choices(mock_openai):
     import asyncio

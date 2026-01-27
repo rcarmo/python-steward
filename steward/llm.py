@@ -6,7 +6,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 
 from openai import AsyncOpenAI
 
-from .types import LLMClient, LLMResult, Message, StreamHandler, ToolCallDescriptor, ToolDefinition
+from .types import LLMClient, LLMResult, Message, StreamHandler, ToolCallDescriptor, ToolDefinition, UsageStats
 
 # Async stream handler type
 AsyncStreamHandler = Callable[[str, bool], Awaitable[None]]
@@ -118,7 +118,10 @@ class OpenAIClient:
         choice = completion.choices[0].message
         tool_calls = _to_tool_calls(choice.tool_calls)
         content = choice.content if isinstance(choice.content, str) else None
-        return {"content": content, "toolCalls": tool_calls}
+
+        # Extract usage statistics including cache info
+        usage = _extract_usage(completion)
+        return {"content": content, "toolCalls": tool_calls, "usage": usage}
 
 
 def build_client(provider: str, model: str, timeout_ms: Optional[int] = None) -> LLMClient:
@@ -201,3 +204,25 @@ def _to_tool_calls(calls: Any) -> Optional[List[ToolCallDescriptor]]:
             args = {}
         results.append({"id": call.id, "name": call.function.name, "arguments": args})
     return results if results else None
+
+
+def _extract_usage(completion: Any) -> Optional[UsageStats]:
+    """Extract usage statistics from API response, including prompt cache info."""
+    usage = getattr(completion, "usage", None)
+    if not usage:
+        return None
+
+    stats: UsageStats = {
+        "prompt_tokens": getattr(usage, "prompt_tokens", 0),
+        "completion_tokens": getattr(usage, "completion_tokens", 0),
+        "total_tokens": getattr(usage, "total_tokens", 0),
+    }
+
+    # Extract cached tokens from prompt_tokens_details (OpenAI cache feature)
+    details = getattr(usage, "prompt_tokens_details", None)
+    if details:
+        cached = getattr(details, "cached_tokens", 0)
+        if cached:
+            stats["cached_tokens"] = cached
+
+    return stats
