@@ -1,3 +1,46 @@
+# Copilot Development Instructions
+
+## Makefile Usage (MANDATORY)
+
+Always use the Makefile for development tasks. Never run raw `pytest` or `ruff` commands directly.
+
+### Quick Reference
+
+| Task | Command | Description |
+|------|---------|-------------|
+| Run tests | `make test` | Run pytest suite |
+| Run linter | `make lint` | Run ruff lint |
+| Format code | `make format` | Auto-format with ruff |
+| Full check | `make check` | Run lint + coverage |
+| Coverage report | `make coverage` | Run pytest with coverage |
+| Install dev deps | `make install-dev` | Install package + dev dependencies |
+| Clean artifacts | `make clean` | Remove temp artifacts |
+| See all targets | `make help` | Show all available commands |
+
+### Development Workflow
+
+1. **Before making changes**: Run `make check` to establish baseline
+2. **After making changes**: Run `make check` to verify no regressions
+3. **Full cleanup**: Use `make clean` for temp artifacts
+
+### Version Management
+
+- `make bump-patch` - Bump patch version and create git tag
+- `make push` - Push commits and tags to origin
+
+## Testing Guidelines
+
+- Aim for good test coverage
+- Review tests periodically to consolidate/parameterize and remove redundancy
+- Use fixtures from `tests/conftest.py` instead of duplicating setup code
+- Prefer parameterized tests for similar test cases
+
+## Code Style
+
+- Do not use heredocs or random shell commands
+- Prefer `make` and ecosystem tools (pip) over manual operations
+- Debug issues systematically - search for and review documentation as needed
+
 ## Coding Style Guidelines
 
 When contributing to this project, please adhere to the following coding style guidelines:
@@ -13,4 +56,3 @@ When contributing to this project, please adhere to the following coding style g
 * Add utility functions to `utils.py` and constants to `config.py`, making sure to import them where needed and that any major configuration parameters are handled in a consistent way.
 * NEVER add import statements inside functions or methods. Add any and all imports at the top of the file.
 * Before writing new helpers or adding inline logic for things that might be reusable, check if there are existing ones that can be re-used or adapted.
-

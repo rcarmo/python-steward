@@ -5,6 +5,9 @@ from os import getcwd
 from pathlib import Path
 from typing import List, Optional
 
+from .config import DEFAULT_MEMORY_CONTEXT_ITEMS
+from .tools.store_memory import load_memories, memory_file
+
 VERSION = "0.11.1"
 
 # AGENTS.md configuration file names (checked in order)
@@ -90,6 +93,33 @@ def _find_git_root(start: str) -> Optional[str]:
     return None
 
 
+def _memory_context_section() -> str:
+    mem_path = memory_file()
+    memories = load_memories(mem_path)
+    if not memories:
+        return "<memory_context>\n(no stored memories)\n</memory_context>"
+    limited = memories[:DEFAULT_MEMORY_CONTEXT_ITEMS]
+    lines = ["<memory_context>"]
+    for memory in limited:
+        subject = memory.get("subject", "").strip()
+        fact = memory.get("fact", "").strip()
+        citations = memory.get("citations", "").strip()
+        category = memory.get("category", "").strip()
+        reason = memory.get("reason", "").strip()
+        lines.append(f"- {subject}: {fact}")
+        if reason:
+            lines.append(f"  Reason: {reason}")
+        if citations or category:
+            detail = []
+            if category:
+                detail.append(f"Category: {category}")
+            if citations:
+                detail.append(f"Citations: {citations}")
+            lines.append(f"  {' | '.join(detail)}")
+    lines.append("</memory_context>")
+    return "\n".join(lines)
+
+
 def build_system_prompt(
     tool_names: List[str],
     custom_instructions: Optional[str] = None,
@@ -114,6 +144,7 @@ def build_system_prompt(
     12. Custom instructions
     13. Plan mode (if active)
     14. Tips
+    15. Memory context (variable, last for caching)
     """
     tools_list = ", ".join(sorted(tool_names))  # Sort for cache stability
     env_context = get_environment_context()
@@ -147,6 +178,7 @@ def build_system_prompt(
         sections.append(_plan_mode_section())
 
     sections.append(_tips_section())
+    sections.append(_memory_context_section())
 
     return "\n\n".join(sections)
 
@@ -185,6 +217,10 @@ When to parallelize:
 When NOT to parallelize:
 - Operations that depend on previous results
 - Sequential workflow steps
+
+Memory and caching:
+- Check existing memories early using list_memories to avoid redundant exploration
+- Keep memory lookups focused (filters) to preserve prompt cache stability
 </tool_efficiency>"""
 
 
@@ -242,7 +278,15 @@ def _tool_guidance_section() -> str:
 **store_memory**:
 * Store facts that will help future tasks (conventions, build commands, patterns)
 * Facts must be actionable, stable, and not obvious from code inspection
-* Include reason and citations for each fact
+* Include citations (file + line) for each fact
+* Use 1-2 words for subject, 2-3 sentences for reason
+* Re-check existing memories before storing new ones and avoid duplicates
+* If a fact is outdated or contradicted, store the corrected version
+
+**list_memories**:
+* Check stored memories early to avoid redundant exploration
+* Prefer short, relevant facts; ignore stale or unrelated memories
+* Use filters (category/subject) to keep output focused and cache-friendly
 
 **report_intent**:
 * Call on first tool-calling turn after each user message

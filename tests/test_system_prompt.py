@@ -1,4 +1,5 @@
 """Tests for system_prompt module."""
+import json
 import os
 from pathlib import Path
 
@@ -147,6 +148,41 @@ def test_build_system_prompt_store_memory_guidance():
     assert "store_memory" in prompt
     assert "facts" in prompt.lower()
     assert "citations" in prompt.lower()
+
+
+def test_build_system_prompt_list_memories_guidance():
+    """Test that list_memories guidance is present."""
+    prompt = build_system_prompt(["list_memories"])
+    assert "list_memories" in prompt
+    assert "memories" in prompt.lower()
+
+
+def test_build_system_prompt_memory_context_empty():
+    """Test that memory context section is present even without memories."""
+    prompt = build_system_prompt(["view"])
+    assert "<memory_context>" in prompt
+    assert "(no stored memories)" in prompt
+
+
+def test_build_system_prompt_memory_context_includes_memories(tmp_path: Path, monkeypatch):
+    """Test that stored memories are injected into the prompt."""
+    data = {
+        "memories": [
+            {
+                "subject": "testing",
+                "fact": "Use pytest.",
+                "citations": "file.py:1",
+                "reason": "It is consistent. It is fast.",
+                "category": "general",
+                "timestamp": "2024-01-01T00:00:00+00:00",
+            }
+        ]
+    }
+    (tmp_path / ".steward-memory.json").write_text(json.dumps(data), encoding="utf8")
+    monkeypatch.chdir(tmp_path)
+    prompt = build_system_prompt(["view"])
+    assert "Use pytest." in prompt
+    assert prompt.rfind("<memory_context>") > prompt.rfind("<tips>")
 
 
 def test_build_system_prompt_iteration_workflow():

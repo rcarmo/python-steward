@@ -165,6 +165,7 @@ Then use the MCP tools:
 | --- | --- |
 | `update_todo` | Markdown checklist for task tracking; persisted to `.steward-todo.md`. |
 | `store_memory` | Persist facts about codebase for future tasks; stored in `.steward-memory.json`. |
+| `list_memories` | Retrieve stored memories with optional filters. |
 | `report_intent` | Report current agent intent for UI status updates. |
 | `ask_user` | Ask user questions with optional multiple choice responses. |
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from re import split as re_split
 
 from ..types import ToolResult
 from .shared import ensure_inside_workspace
@@ -13,7 +14,7 @@ def memory_file() -> Path:
     return Path.cwd() / ".steward-memory.json"
 
 
-def load_memories(path: Path) -> list:
+def load_memories(path: Path) -> list[dict]:
     if not path.exists():
         return []
     try:
@@ -44,6 +45,16 @@ def tool_store_memory(subject: str, fact: str, citations: str, reason: str, cate
         raise ValueError("'citations' must be a non-empty string")
     if not reason or not reason.strip():
         raise ValueError("'reason' must be a non-empty string")
+    subject_words = [word for word in subject.strip().split() if word]
+    if len(subject_words) < 1 or len(subject_words) > 2:
+        raise ValueError("'subject' must be 1-2 words")
+    reason_sentences = [
+        sentence.strip()
+        for sentence in re_split(r"[.!?]+", reason.strip())
+        if sentence.strip()
+    ]
+    if len(reason_sentences) < 2 or len(reason_sentences) > 3:
+        raise ValueError("'reason' must be 2-3 sentences")
     valid_categories = {"bootstrap_and_build", "user_preferences", "general", "file_specific"}
     if category not in valid_categories:
         raise ValueError(f"'category' must be one of: {', '.join(valid_categories)}")

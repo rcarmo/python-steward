@@ -136,6 +136,8 @@ def get_session_context(session_id: str, base_dir: Optional[Path] = None) -> str
     lines.append("")
     lines.append("For complex tasks, create plan.md at the session folder root before implementing.")
     lines.append("files/ persists across checkpoints for artifacts that shouldn't be committed.")
+    lines.append("")
+    lines.append("Memories: use list_memories to review stored facts before new exploration.")
     lines.append("</session_context>")
 
     return "\n".join(lines)
