@@ -13,6 +13,7 @@ This document describes how Steward sandboxes tool execution today, the known li
 - **Timeouts**: `timeoutMs` (default `STEWARD_JS_TIMEOUT_MS`) governs the worker lifespan; on expiry the process is terminated. There is no in-VM interrupt handler; tight loops run until the process is killed.
 - **Host surface**: Only `console.log/warn/error` and a `SANDBOX_ROOT` string are injected. No `process`, `require`, `fs`, or timers. All state is confined to the context lifetime.
 - **Loading from file**: The tool can load JS from a `path` argument, but the file must be inside the current workspace (enforced via `ensure_inside_workspace`). This is read-only and does not expose an FS API to the sandboxed code.
+- **Transform calls**: You can call named functions with a params object via `function`/`params` or `calls`. Results can be returned as JSON or text. Function names are restricted to identifier/dotted paths (e.g., `transform.run`).
 - **Network**: Disabled by default. If `allowNetwork` is true, a minimal `fetch` shim is added that calls Python `requests.get` with a 5s timeout. Responses are returned as text; there is no URL allow/deny list or response size cap beyond the overall output truncation (`STEWARD_JS_MAX_OUTPUT_BYTES`).
 - **Filesystem**: No host FS access is exposed. `SANDBOX_ROOT` is informational only and not enforced.
 - **Async**: The shimmed `fetch` is async in signature but uses a blocking host call; there is no job-drain loop beyond the process lifetime.

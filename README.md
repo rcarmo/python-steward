@@ -186,7 +186,7 @@ Then use the MCP tools:
 
 | Tool | Description |
 | --- | --- |
-| `run_js` | QuickJS sandbox; execute code or load from workspace path; timeout/output caps; optional `allowNetwork` fetch helper. |
+| `run_js` | QuickJS sandbox; execute code or load from workspace path; optional function calls with named params and JSON/text output; timeout/output caps; optional `allowNetwork` fetch helper. |
 | `configure_python_environment` / `get_python_executable_details` / `install_python_packages` | Python env info/selection/install helpers. |
 
 ### Code Analysis
