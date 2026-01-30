@@ -1,4 +1,5 @@
 """Tests for MCP client tools."""
+
 from __future__ import annotations
 
 import json
@@ -12,14 +13,7 @@ def test_mcp_list_servers_no_config(tool_handlers, sandbox: Path):
 
 
 def test_mcp_list_servers_with_config(tool_handlers, sandbox: Path):
-    config = {
-        "mcpServers": {
-            "test-server": {
-                "command": "python",
-                "args": ["-m", "test_mcp"]
-            }
-        }
-    }
+    config = {"mcpServers": {"test-server": {"command": "python", "args": ["-m", "test_mcp"]}}}
     (sandbox / "mcp.json").write_text(json.dumps(config), encoding="utf8")
     result = tool_handlers["mcp_list_servers"]({})
     assert "test-server" in result["output"]
@@ -28,12 +22,14 @@ def test_mcp_list_servers_with_config(tool_handlers, sandbox: Path):
 
 def test_mcp_list_tools_unknown_server(tool_handlers, sandbox: Path):
     import pytest
+
     with pytest.raises(ValueError, match="Unknown server"):
         tool_handlers["mcp_list_tools"]({"server": "nonexistent"})
 
 
 def test_mcp_call_unknown_server(tool_handlers, sandbox: Path):
     import pytest
+
     with pytest.raises(ValueError, match="Unknown server"):
         tool_handlers["mcp_call"]({"server": "nonexistent", "tool": "test"})
 
@@ -71,13 +67,7 @@ def test_mcp_client_list_servers():
 def test_mcp_server_config_dataclass():
     from steward.mcp_client import MCPServerConfig
 
-    config = MCPServerConfig(
-        name="test",
-        command="python",
-        args=["-m", "server"],
-        cwd="/tmp",
-        env={"KEY": "value"}
-    )
+    config = MCPServerConfig(name="test", command="python", args=["-m", "server"], cwd="/tmp", env={"KEY": "value"})
     assert config.name == "test"
     assert config.command == "python"
     assert config.args == ["-m", "server"]

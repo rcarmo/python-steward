@@ -1,4 +1,5 @@
 """update_todo tool - markdown checklist for task tracking (aligned with Copilot CLI)."""
+
 from __future__ import annotations
 
 from pathlib import Path

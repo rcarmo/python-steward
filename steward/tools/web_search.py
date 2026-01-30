@@ -1,4 +1,5 @@
 """web_search tool - web search returning contextual answers with citations."""
+
 from __future__ import annotations
 
 import re
@@ -74,13 +75,13 @@ def _parse_duckduckgo_results(html: str, max_results: int) -> list[dict]:
     result_pattern = re.compile(
         r'<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([^<]*)</a>.*?'
         r'<a[^>]*class="result__snippet"[^>]*>([^<]*(?:<[^>]*>[^<]*)*)</a>',
-        re.DOTALL | re.IGNORECASE
+        re.DOTALL | re.IGNORECASE,
     )
 
     alt_pattern = re.compile(
         r'<h2[^>]*class="result__title"[^>]*>.*?<a[^>]*href="([^"]*)"[^>]*>([^<]*)</a>.*?'
         r'class="result__snippet"[^>]*>([^<]*)',
-        re.DOTALL | re.IGNORECASE
+        re.DOTALL | re.IGNORECASE,
     )
 
     for pattern in [result_pattern, alt_pattern]:

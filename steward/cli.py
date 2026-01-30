@@ -1,4 +1,5 @@
 """CLI entrypoint for steward."""
+
 from __future__ import annotations
 
 import argparse
@@ -29,7 +30,13 @@ def parse_args() -> Union[RunnerOptions, dict]:
     parser.add_argument("--quiet", action="store_true", help="Suppress human-readable logs to stdout")
     parser.add_argument("--pretty", action="store_true", help="Enable pretty boxed/color human logs")
     parser.add_argument("--system", dest="system", help="Load system prompt from file")
-    parser.add_argument("--session", dest="session", nargs="?", const="auto", help="Enable session persistence (auto-generates ID if not specified)")
+    parser.add_argument(
+        "--session",
+        dest="session",
+        nargs="?",
+        const="auto",
+        help="Enable session persistence (auto-generates ID if not specified)",
+    )
     parser.add_argument("--instructions", dest="instructions", help="Load custom instructions from file")
     parser.add_argument(
         "--sandbox",
@@ -104,6 +111,7 @@ def main() -> None:
     if isinstance(result, dict):
         if result.get("repl"):
             from .repl import run_repl
+
             run_repl(
                 provider=result["provider"],
                 model=result["model"],

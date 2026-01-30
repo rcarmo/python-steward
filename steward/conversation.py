@@ -1,4 +1,5 @@
 """Conversation history management with token-aware sliding window and compaction."""
+
 from __future__ import annotations
 
 import json

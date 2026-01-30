@@ -1,4 +1,5 @@
 """edit tool - string replacement in files (aligned with Copilot CLI)."""
+
 from __future__ import annotations
 
 from ..types import ToolResult
@@ -27,7 +28,9 @@ def tool_edit(path: str, old_str: str, new_str: str) -> ToolResult:
     if count == 0:
         raise ValueError(f"old_str not found in {rel_path(abs_path)}")
     if count > 1:
-        raise ValueError(f"old_str appears {count} times in {rel_path(abs_path)}; must be unique. Add more context to make it unique.")
+        raise ValueError(
+            f"old_str appears {count} times in {rel_path(abs_path)}; must be unique. Add more context to make it unique."
+        )
 
     # Perform replacement
     new_content = content.replace(old_str, new_str, 1)

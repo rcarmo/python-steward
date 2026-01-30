@@ -1,4 +1,5 @@
 """Tests for runner module."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -43,7 +44,7 @@ def test_summarize_plan_args():
                 {"id": 1, "title": "Task 1", "status": "pending"},
                 {"id": 2, "title": "Task 2", "status": "done"},
             ]
-        }
+        },
     }
     result = summarize_plan_args(call)
     assert "size=2" in result
@@ -65,10 +66,7 @@ def test_synthesize_meta_tool():
     mock_logger = MagicMock(spec=Logger)
     mock_logger.start_spinner.return_value = MagicMock()
 
-    result = {
-        "meta_prompt": "Synthesize this: test data",
-        "meta_context": "test data"
-    }
+    result = {"meta_prompt": "Synthesize this: test data", "meta_context": "test data"}
 
     output = asyncio.run(synthesize_meta_tool_async(mock_client, result, mock_logger))
     assert output == "Synthesized response"
@@ -89,10 +87,7 @@ def test_synthesize_meta_tool_error():
     mock_logger = MagicMock(spec=Logger)
     mock_logger.start_spinner.return_value = MagicMock()
 
-    result = {
-        "meta_prompt": "test prompt",
-        "meta_context": "context data"
-    }
+    result = {"meta_prompt": "test prompt", "meta_context": "context data"}
 
     output = asyncio.run(synthesize_meta_tool_async(mock_client, result, mock_logger))
     assert "[synthesis error]" in output
@@ -122,21 +117,14 @@ def test_synthesize_meta_tool_empty_response():
 def test_runner_result_has_response_id():
     from steward.runner import RunnerResult
 
-    result = RunnerResult(
-        response="test",
-        messages=[],
-        last_response_id="resp_123"
-    )
+    result = RunnerResult(response="test", messages=[], last_response_id="resp_123")
     assert result.last_response_id == "resp_123"
 
 
 def test_runner_options_has_previous_response_id():
     from steward.runner import RunnerOptions
 
-    options = RunnerOptions(
-        prompt="test",
-        previous_response_id="resp_456"
-    )
+    options = RunnerOptions(prompt="test", previous_response_id="resp_456")
     assert options.previous_response_id == "resp_456"
 
 
@@ -157,8 +145,8 @@ def test_runner_options():
     assert opts.llm_client is not None
 
 
-@patch('steward.runner.build_client')
-@patch('steward.runner.discover_tools')
+@patch("steward.runner.build_client")
+@patch("steward.runner.discover_tools")
 def test_run_steward_basic(mock_discover, mock_build, sandbox: Path):
     from steward.runner import RunnerOptions, run_steward
 
@@ -172,13 +160,7 @@ def test_run_steward_basic(mock_discover, mock_build, sandbox: Path):
     mock_client.generate = mock_generate
     mock_build.return_value = mock_client
 
-    opts = RunnerOptions(
-        prompt="test",
-        provider="echo",
-        model="test",
-        enable_human_logs=False,
-        enable_file_logs=False
-    )
+    opts = RunnerOptions(prompt="test", provider="echo", model="test", enable_human_logs=False, enable_file_logs=False)
 
     result = run_steward(opts)
     assert result == "Final response"

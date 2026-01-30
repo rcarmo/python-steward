@@ -1,4 +1,5 @@
 """read_bash tool - read output from async bash sessions."""
+
 from __future__ import annotations
 
 from time import sleep
@@ -35,7 +36,11 @@ def tool_read_bash(sessionId: str, delay: Optional[float] = None) -> ToolResult:
         if stderr:
             output_parts.append(stderr)
         output = "\n".join(output_parts) if output_parts else "(no output)"
-        return {"id": "read_bash", "output": f"[completed, exit code {proc.returncode}]\n{truncate_output(output, 32000)}", "next_tool": ["stop_bash"]}
+        return {
+            "id": "read_bash",
+            "output": f"[completed, exit code {proc.returncode}]\n{truncate_output(output, 32000)}",
+            "next_tool": ["stop_bash"],
+        }
 
     # Process still running - read available output
     output_parts.append(f"[still running, pid: {proc.pid}]")

@@ -12,6 +12,7 @@ license = { text = "MIT" }
 readme = "README.md"
 dependencies = [
     "aiohttp>=3.9.0",
+    "agent-client-protocol>=0.7.1",
     "openai>=1.55.0",
     "python-dotenv>=1.0.0",
     "requests>=2.32.3",
@@ -32,6 +33,7 @@ dev = [
 steward = "steward.cli:main"
 steward-repl = "steward.repl:main"
 steward-mcp = "steward.mcp:main"
+steward-acp = "steward.acp:main"
 
 [tool.setuptools.packages.find]
 include = ["steward", "steward.*"]

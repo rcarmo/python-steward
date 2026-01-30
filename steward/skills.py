@@ -1,4 +1,5 @@
 """Skill registry for auto-discovery, matching, and chaining."""
+
 from __future__ import annotations
 
 import re
@@ -73,7 +74,7 @@ class SkillRegistry:
             return []
 
         query_lower = query.lower()
-        query_words = set(re.findall(r'\w+', query_lower))
+        query_words = set(re.findall(r"\w+", query_lower))
         results: List[tuple[SkillMetadata, float]] = []
 
         for skill in self.all():
@@ -104,7 +105,7 @@ class SkillRegistry:
                 score += 1.5
 
         # Description word overlap
-        desc_words = set(re.findall(r'\w+', skill.description.lower()))
+        desc_words = set(re.findall(r"\w+", skill.description.lower()))
         overlap = query_words & desc_words
         score += len(overlap) * 0.5
 

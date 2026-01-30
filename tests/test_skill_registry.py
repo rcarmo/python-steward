@@ -1,4 +1,5 @@
 """Tests for skill registry."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -7,12 +8,15 @@ from steward.skills import SkillRegistry, get_registry, reset_registry
 
 
 def test_registry_discover(tmp_path: Path):
-    (tmp_path / "SKILL.md").write_text("""---
+    (tmp_path / "SKILL.md").write_text(
+        """---
 name: test-skill
 description: A test skill
 ---
 # Test
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     registry = SkillRegistry()
     count = registry.discover(tmp_path)
@@ -32,11 +36,14 @@ def test_registry_discover_recursive(tmp_path: Path):
 
 
 def test_registry_match_by_name(tmp_path: Path):
-    (tmp_path / "SKILL.md").write_text("""---
+    (tmp_path / "SKILL.md").write_text(
+        """---
 name: algorithmic-art
 description: Creating generative art
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     registry = SkillRegistry()
     registry.discover(tmp_path)
@@ -48,7 +55,8 @@ description: Creating generative art
 
 
 def test_registry_match_by_trigger(tmp_path: Path):
-    (tmp_path / "SKILL.md").write_text("""---
+    (tmp_path / "SKILL.md").write_text(
+        """---
 name: art-skill
 description: Art creation
 triggers:
@@ -56,7 +64,9 @@ triggers:
   - p5js
   - creative coding
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     registry = SkillRegistry()
     registry.discover(tmp_path)
@@ -67,11 +77,14 @@ triggers:
 
 
 def test_registry_match_by_description(tmp_path: Path):
-    (tmp_path / "SKILL.md").write_text("""---
+    (tmp_path / "SKILL.md").write_text(
+        """---
 name: mcp-skill
 description: Building MCP servers for LLM integration
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     registry = SkillRegistry()
     registry.discover(tmp_path)
@@ -82,31 +95,40 @@ description: Building MCP servers for LLM integration
 
 
 def test_registry_get_chain(tmp_path: Path):
-    (tmp_path / "skill1.md").write_text("""---
+    (tmp_path / "skill1.md").write_text(
+        """---
 name: skill-a
 description: First skill
 chain:
   - skill-b
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
     # Rename to SKILL.md in separate dirs
     dir_a = tmp_path / "a"
     dir_a.mkdir()
-    (dir_a / "SKILL.md").write_text("""---
+    (dir_a / "SKILL.md").write_text(
+        """---
 name: skill-a
 description: First skill
 chain:
   - skill-b
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     dir_b = tmp_path / "b"
     dir_b.mkdir()
-    (dir_b / "SKILL.md").write_text("""---
+    (dir_b / "SKILL.md").write_text(
+        """---
 name: skill-b
 description: Second skill
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     registry = SkillRegistry()
     registry.discover(tmp_path)
@@ -119,19 +141,25 @@ description: Second skill
 def test_registry_duplicate_names(tmp_path: Path):
     dir_a = tmp_path / "a"
     dir_a.mkdir()
-    (dir_a / "SKILL.md").write_text("""---
+    (dir_a / "SKILL.md").write_text(
+        """---
 name: dup-skill
 description: First
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     dir_b = tmp_path / "b"
     dir_b.mkdir()
-    (dir_b / "SKILL.md").write_text("""---
+    (dir_b / "SKILL.md").write_text(
+        """---
 name: dup-skill
 description: Second
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     registry = SkillRegistry()
     registry.discover(tmp_path)
@@ -143,23 +171,29 @@ description: Second
 def test_registry_cycle_handling(tmp_path: Path):
     dir_a = tmp_path / "a"
     dir_a.mkdir()
-    (dir_a / "SKILL.md").write_text("""---
+    (dir_a / "SKILL.md").write_text(
+        """---
 name: skill-a
 description: A
 chain:
   - skill-b
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     dir_b = tmp_path / "b"
     dir_b.mkdir()
-    (dir_b / "SKILL.md").write_text("""---
+    (dir_b / "SKILL.md").write_text(
+        """---
 name: skill-b
 description: B
 chain:
   - skill-a
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     registry = SkillRegistry()
     registry.discover(tmp_path)
@@ -168,24 +202,31 @@ chain:
     names = [s.name for s in order]
     assert "skill-a" in names and "skill-b" in names
 
+
 def test_registry_get_dependencies(tmp_path: Path):
     dir_a = tmp_path / "a"
     dir_a.mkdir()
-    (dir_a / "SKILL.md").write_text("""---
+    (dir_a / "SKILL.md").write_text(
+        """---
 name: skill-a
 description: First skill
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     dir_b = tmp_path / "b"
     dir_b.mkdir()
-    (dir_b / "SKILL.md").write_text("""---
+    (dir_b / "SKILL.md").write_text(
+        """---
 name: skill-b
 description: Second skill
 requires:
   - skill-a
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     registry = SkillRegistry()
     registry.discover(tmp_path)
@@ -198,21 +239,27 @@ requires:
 def test_registry_get_dependents(tmp_path: Path):
     dir_a = tmp_path / "a"
     dir_a.mkdir()
-    (dir_a / "SKILL.md").write_text("""---
+    (dir_a / "SKILL.md").write_text(
+        """---
 name: skill-a
 description: First skill
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     dir_b = tmp_path / "b"
     dir_b.mkdir()
-    (dir_b / "SKILL.md").write_text("""---
+    (dir_b / "SKILL.md").write_text(
+        """---
 name: skill-b
 description: Second skill
 requires:
   - skill-a
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     registry = SkillRegistry()
     registry.discover(tmp_path)
@@ -225,31 +272,40 @@ requires:
 def test_registry_build_execution_order(tmp_path: Path):
     dir_a = tmp_path / "a"
     dir_a.mkdir()
-    (dir_a / "SKILL.md").write_text("""---
+    (dir_a / "SKILL.md").write_text(
+        """---
 name: skill-a
 description: First skill
 chain:
   - skill-c
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     dir_b = tmp_path / "b"
     dir_b.mkdir()
-    (dir_b / "SKILL.md").write_text("""---
+    (dir_b / "SKILL.md").write_text(
+        """---
 name: skill-b
 description: Dependency skill
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     dir_c = tmp_path / "c"
     dir_c.mkdir()
-    (dir_c / "SKILL.md").write_text("""---
+    (dir_c / "SKILL.md").write_text(
+        """---
 name: skill-c
 description: Final skill
 requires:
   - skill-b
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     registry = SkillRegistry()
     registry.discover(tmp_path)
@@ -270,7 +326,8 @@ def test_global_registry():
 
 
 def test_format_suggestions(tmp_path: Path):
-    (tmp_path / "SKILL.md").write_text("""---
+    (tmp_path / "SKILL.md").write_text(
+        """---
 name: test-skill
 description: A test skill for testing
 requires:
@@ -278,7 +335,9 @@ requires:
 chain:
   - follow-up
 ---
-""", encoding="utf8")
+""",
+        encoding="utf8",
+    )
 
     registry = SkillRegistry()
     registry.discover(tmp_path)

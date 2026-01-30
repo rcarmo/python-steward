@@ -1,4 +1,5 @@
 """grep tool - search file contents using ripgrep-style options (aligned with Copilot CLI)."""
+
 from __future__ import annotations
 
 import fnmatch

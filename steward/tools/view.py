@@ -1,4 +1,5 @@
 """view tool - view files and directories (aligned with Copilot CLI)."""
+
 from __future__ import annotations
 
 from pathlib import Path

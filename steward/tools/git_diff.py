@@ -1,4 +1,5 @@
 """git_diff tool."""
+
 from __future__ import annotations
 
 from pathlib import Path

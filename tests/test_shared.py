@@ -1,4 +1,5 @@
 """Tests for shared utilities."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -104,8 +105,9 @@ def test_truncate_tool_output():
 def test_build_matcher_simple():
     from steward.tools.shared import build_matcher
 
-    matcher = build_matcher("hello", is_regex=False, case_sensitive=False,
-                           smart_case=False, fixed_string=False, word_match=False)
+    matcher = build_matcher(
+        "hello", is_regex=False, case_sensitive=False, smart_case=False, fixed_string=False, word_match=False
+    )
     assert matcher("hello world")
     assert matcher("HELLO WORLD")
     assert not matcher("goodbye")
@@ -114,8 +116,9 @@ def test_build_matcher_simple():
 def test_build_matcher_case_sensitive():
     from steward.tools.shared import build_matcher
 
-    matcher = build_matcher("Hello", is_regex=False, case_sensitive=True,
-                           smart_case=False, fixed_string=False, word_match=False)
+    matcher = build_matcher(
+        "Hello", is_regex=False, case_sensitive=True, smart_case=False, fixed_string=False, word_match=False
+    )
     assert matcher("Hello world")
     assert not matcher("hello world")
 
@@ -123,8 +126,9 @@ def test_build_matcher_case_sensitive():
 def test_build_matcher_regex():
     from steward.tools.shared import build_matcher
 
-    matcher = build_matcher(r"\d+", is_regex=True, case_sensitive=False,
-                           smart_case=False, fixed_string=False, word_match=False)
+    matcher = build_matcher(
+        r"\d+", is_regex=True, case_sensitive=False, smart_case=False, fixed_string=False, word_match=False
+    )
     assert matcher("test 123")
     assert not matcher("no numbers")
 

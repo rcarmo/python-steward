@@ -1,4 +1,5 @@
 """mcp_call tool - invoke a tool on an MCP server."""
+
 from __future__ import annotations
 
 from typing import Any, Dict, Optional

@@ -1,4 +1,5 @@
 """web_fetch tool - fetch URL and return as markdown or raw HTML."""
+
 from __future__ import annotations
 
 import base64
@@ -43,7 +44,13 @@ def _html_to_markdown(html: str) -> str:
     # Remove remaining tags
     text = re.sub(r"<[^>]+>", "", text)
     # Decode HTML entities
-    text = text.replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", '"')
+    text = (
+        text.replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", '"')
+    )
     # Normalize whitespace
     text = re.sub(r"\n\s*\n\s*\n+", "\n\n", text)
     text = re.sub(r"[ \t]+", " ", text)
@@ -111,12 +118,14 @@ async def tool_web_fetch(
 
     # Apply pagination
     total_length = len(content)
-    paginated = content[start_index:start_index + limit]
+    paginated = content[start_index : start_index + limit]
     truncated = start_index + len(paginated) < total_length
 
     output_lines = [f"url: {url}", f"content-type: {content_type}"]
     if truncated:
-        output_lines.append(f"[truncated at {start_index + len(paginated)}/{total_length} chars, use start_index={start_index + len(paginated)} to continue]")
+        output_lines.append(
+            f"[truncated at {start_index + len(paginated)}/{total_length} chars, use start_index={start_index + len(paginated)} to continue]"
+        )
     output_lines.append("")
     output_lines.append(paginated)
 

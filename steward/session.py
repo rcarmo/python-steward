@@ -1,4 +1,5 @@
 """Session management for Steward."""
+
 from __future__ import annotations
 
 import json
@@ -173,11 +174,13 @@ def list_sessions(base_dir: Optional[Path] = None) -> List[Dict]:
             state_file = session_dir / "state.json"
             if state_file.exists():
                 state = json.loads(state_file.read_text(encoding="utf8"))
-                sessions.append({
-                    "session_id": state.get("session_id"),
-                    "created": state.get("created"),
-                    "checkpoints": len(state.get("checkpoints", [])),
-                })
+                sessions.append(
+                    {
+                        "session_id": state.get("session_id"),
+                        "created": state.get("created"),
+                        "checkpoints": len(state.get("checkpoints", [])),
+                    }
+                )
 
     return sorted(sessions, key=lambda x: x.get("created", ""), reverse=True)
 

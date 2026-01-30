@@ -1,4 +1,5 @@
 """Tests for bash tool."""
+
 from __future__ import annotations
 
 import os
@@ -17,9 +18,12 @@ def enable_execute():
         os.environ.pop(key, None)
 
 
-@pytest.mark.parametrize("command,expected", [
-    ("echo hello", "hello"),
-])
+@pytest.mark.parametrize(
+    "command,expected",
+    [
+        ("echo hello", "hello"),
+    ],
+)
 def test_bash_runs_command(tool_handlers, sandbox: Path, enable_execute, command, expected):
     result = tool_handlers["bash"]({"command": command})
     assert expected in result["output"]
@@ -37,11 +41,14 @@ def test_bash_with_cwd(tool_handlers, sandbox: Path, enable_execute):
     assert "sub" in result["output"]
 
 
-@pytest.mark.parametrize("mode,detach,expected", [
-    ("sync", False, "still running"),
-    ("async", False, "Started async"),
-    ("async", True, "Started detached"),
-])
+@pytest.mark.parametrize(
+    "mode,detach,expected",
+    [
+        ("sync", False, "still running"),
+        ("async", False, "Started async"),
+        ("async", True, "Started detached"),
+    ],
+)
 def test_bash_modes(tool_handlers, sandbox: Path, enable_execute, mode, detach, expected):
     args = {"command": "sleep 5" if mode == "sync" else "sleep 1", "mode": mode}
     if mode == "sync":

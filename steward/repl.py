@@ -1,4 +1,5 @@
 """REPL mode for steward with full line editing capabilities."""
+
 from __future__ import annotations
 
 import atexit
@@ -174,9 +175,12 @@ def run_repl(
             if conversation_history:
                 try:
                     from .conversation import get_conversation_stats
+
                     stats = get_conversation_stats(conversation_history, effective_model)
                     print(f"Conversation: {stats['message_count']} messages, {stats['total_tokens']} tokens")
-                    print(f"  User: {stats['user_messages']}, Assistant: {stats['assistant_messages']}, Tool: {stats['tool_messages']}")
+                    print(
+                        f"  User: {stats['user_messages']}, Assistant: {stats['assistant_messages']}, Tool: {stats['tool_messages']}"
+                    )
                 except Exception:
                     print("Token stats unavailable (missing tiktoken).")
             else:

@@ -1,4 +1,5 @@
 """mkdir tool - create directories (aligned with Copilot CLI behavior)."""
+
 from __future__ import annotations
 
 from ..types import ToolResult

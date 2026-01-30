@@ -1,4 +1,5 @@
 """create tool - create new files (aligned with Copilot CLI)."""
+
 from __future__ import annotations
 
 from typing import Optional
@@ -21,4 +22,8 @@ def tool_create(path: str, file_text: Optional[str] = None) -> ToolResult:
         raise ValueError(f"File already exists: {rel_path(abs_path)}. Use edit tool to modify existing files.")
     abs_path.parent.mkdir(parents=True, exist_ok=True)
     abs_path.write_text(content, encoding="utf8")
-    return {"id": "create", "output": f"Created file {rel_path(abs_path)} with {len(content)} characters", "next_tool": ["view", "edit"]}
+    return {
+        "id": "create",
+        "output": f"Created file {rel_path(abs_path)} with {len(content)} characters",
+        "next_tool": ["view", "edit"],
+    }

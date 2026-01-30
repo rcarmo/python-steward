@@ -1,4 +1,5 @@
 """discover_skills tool - find all SKILL.md files in workspace."""
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -1,4 +1,5 @@
 """bash tool - shell execution (aligned with Copilot CLI)."""
+
 from __future__ import annotations
 
 import subprocess
@@ -63,7 +64,9 @@ def tool_bash(
         return _run_sync(command, working_dir, wait_time, max_output_bytes, audit_enabled, description)
 
 
-def _run_sync(command: str, cwd: Path, initial_wait: float, max_output_bytes: int, audit_enabled: bool, description: str) -> ToolResult:
+def _run_sync(
+    command: str, cwd: Path, initial_wait: float, max_output_bytes: int, audit_enabled: bool, description: str
+) -> ToolResult:
     """Run command synchronously, waiting up to initial_wait seconds."""
     session_id = str(uuid.uuid4())[:8]
 
@@ -85,14 +88,16 @@ def _run_sync(command: str, cwd: Path, initial_wait: float, max_output_bytes: in
         truncated = truncate_output(output, max_output_bytes)
 
         if audit_enabled:
-            audit_execute({
-                "ts": _utc_now_iso(),
-                "command": command,
-                "cwd": str(cwd),
-                "exitCode": completed.returncode,
-                "mode": "sync",
-                "description": description,
-            })
+            audit_execute(
+                {
+                    "ts": _utc_now_iso(),
+                    "command": command,
+                    "cwd": str(cwd),
+                    "exitCode": completed.returncode,
+                    "mode": "sync",
+                    "description": description,
+                }
+            )
 
         return {"id": "bash", "output": truncated}
 
@@ -109,14 +114,16 @@ def _run_sync(command: str, cwd: Path, initial_wait: float, max_output_bytes: in
         output = f"[still running after {initial_wait}s, sessionId: {session_id}]\n{truncated}"
 
         if audit_enabled:
-            audit_execute({
-                "ts": _utc_now_iso(),
-                "command": command,
-                "cwd": str(cwd),
-                "exitCode": None,
-                "mode": "sync-partial",
-                "description": description,
-            })
+            audit_execute(
+                {
+                    "ts": _utc_now_iso(),
+                    "command": command,
+                    "cwd": str(cwd),
+                    "exitCode": None,
+                    "mode": "sync-partial",
+                    "description": description,
+                }
+            )
 
         return {"id": "bash", "output": output, "next_tool": ["view", "grep"]}
 
@@ -135,16 +142,22 @@ def _run_async(command: str, cwd: Path, detach: bool, audit_enabled: bool, descr
             start_new_session=True,
         )
         if audit_enabled:
-            audit_execute({
-                "ts": _utc_now_iso(),
-                "command": command,
-                "cwd": str(cwd),
-                "exitCode": None,
-                "mode": "async-detached",
-                "pid": proc.pid,
-                "description": description,
-            })
-        return {"id": "bash", "output": f"Started detached process (pid: {proc.pid}, sessionId: {session_id})", "next_tool": ["list_bash"]}
+            audit_execute(
+                {
+                    "ts": _utc_now_iso(),
+                    "command": command,
+                    "cwd": str(cwd),
+                    "exitCode": None,
+                    "mode": "async-detached",
+                    "pid": proc.pid,
+                    "description": description,
+                }
+            )
+        return {
+            "id": "bash",
+            "output": f"Started detached process (pid: {proc.pid}, sessionId: {session_id})",
+            "next_tool": ["list_bash"],
+        }
     else:
         # Async but attached - can read/write later
         proc = subprocess.Popen(
@@ -164,18 +177,24 @@ def _run_async(command: str, cwd: Path, detach: bool, audit_enabled: bool, descr
             }
 
         if audit_enabled:
-            audit_execute({
-                "ts": _utc_now_iso(),
-                "command": command,
-                "cwd": str(cwd),
-                "exitCode": None,
-                "mode": "async",
-                "sessionId": session_id,
-                "pid": proc.pid,
-                "description": description,
-            })
+            audit_execute(
+                {
+                    "ts": _utc_now_iso(),
+                    "command": command,
+                    "cwd": str(cwd),
+                    "exitCode": None,
+                    "mode": "async",
+                    "sessionId": session_id,
+                    "pid": proc.pid,
+                    "description": description,
+                }
+            )
 
-        return {"id": "bash", "output": f"Started async process (pid: {proc.pid}, sessionId: {session_id})", "next_tool": ["read_bash", "write_bash"]}
+        return {
+            "id": "bash",
+            "output": f"Started async process (pid: {proc.pid}, sessionId: {session_id})",
+            "next_tool": ["read_bash", "write_bash"],
+        }
 
 
 def get_session(session_id: str) -> Optional[dict]:

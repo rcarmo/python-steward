@@ -1,4 +1,5 @@
 """Human and JSON logging helpers."""
+
 from __future__ import annotations
 
 import json
@@ -13,12 +14,12 @@ from rich.theme import Theme
 # Tools whose output should persist on screen (not transient)
 PERSISTENT_TOOLS = {
     "report_intent",  # Intent should always be visible
-    "create",         # File creation
-    "edit",           # File editing
+    "create",  # File creation
+    "edit",  # File editing
     "replace_string_in_file",
     "multi_replace_string_in_file",
     "apply_patch",
-    "git_commit",     # Important git operations
+    "git_commit",  # Important git operations
     "git_stash",
 }
 
@@ -109,10 +110,7 @@ class Logger:
         }.get(variant, "dim")
 
         # Determine if this output should persist or be transient
-        is_persistent = (
-            variant in ("error", "warn", "intent", "file") or
-            title in PERSISTENT_TOOLS
-        )
+        is_persistent = variant in ("error", "warn", "intent", "file") or title in PERSISTENT_TOOLS
 
         # Clear previous transient output before printing persistent
         if is_persistent:

@@ -1,4 +1,5 @@
 """get_python_executable_details tool."""
+
 from __future__ import annotations
 
 import json

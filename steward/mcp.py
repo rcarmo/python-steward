@@ -1,4 +1,5 @@
 """MCP (Model Context Protocol) server for Steward tools via stdio."""
+
 from __future__ import annotations
 
 import json
@@ -11,6 +12,7 @@ from .types import ToolDefinition
 
 # MCP Protocol version
 PROTOCOL_VERSION = "2024-11-05"
+
 
 def _get_version() -> str:
     """Get package version, with fallback."""
@@ -82,26 +84,31 @@ class MCPServer:
 
     def _handle_initialize(self, req_id: Any, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle initialize request."""
-        return self._result_response(req_id, {
-            "protocolVersion": PROTOCOL_VERSION,
-            "capabilities": {
-                "tools": {},
+        return self._result_response(
+            req_id,
+            {
+                "protocolVersion": PROTOCOL_VERSION,
+                "capabilities": {
+                    "tools": {},
+                },
+                "serverInfo": {
+                    "name": "steward",
+                    "version": _get_version(),
+                },
             },
-            "serverInfo": {
-                "name": "steward",
-                "version": _get_version(),
-            },
-        })
+        )
 
     def _handle_tools_list(self, req_id: Any) -> Dict[str, Any]:
         """Handle tools/list request."""
         tools = []
         for defn in self.tool_definitions:
-            tools.append({
-                "name": defn["name"],
-                "description": defn.get("description", ""),
-                "inputSchema": defn.get("parameters", {"type": "object", "properties": {}}),
-            })
+            tools.append(
+                {
+                    "name": defn["name"],
+                    "description": defn.get("description", ""),
+                    "inputSchema": defn.get("parameters", {"type": "object", "properties": {}}),
+                }
+            )
         return self._result_response(req_id, {"tools": tools})
 
     def _handle_tools_call(self, req_id: Any, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -121,19 +128,21 @@ class MCPServer:
             output = result.get("output", "")
             is_error = result.get("error", False)
 
-            return self._result_response(req_id, {
-                "content": [
-                    {"type": "text", "text": output}
-                ],
-                "isError": is_error,
-            })
+            return self._result_response(
+                req_id,
+                {
+                    "content": [{"type": "text", "text": output}],
+                    "isError": is_error,
+                },
+            )
         except Exception as e:
-            return self._result_response(req_id, {
-                "content": [
-                    {"type": "text", "text": f"Error: {e}"}
-                ],
-                "isError": True,
-            })
+            return self._result_response(
+                req_id,
+                {
+                    "content": [{"type": "text", "text": f"Error: {e}"}],
+                    "isError": True,
+                },
+            )
 
     def _result_response(self, req_id: Any, result: Any) -> Dict[str, Any]:
         """Create a successful JSON-RPC response."""

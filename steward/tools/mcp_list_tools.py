@@ -1,4 +1,5 @@
 """mcp_list_tools tool - list tools from an MCP server."""
+
 from __future__ import annotations
 
 from ..mcp_client import list_tools, load_config

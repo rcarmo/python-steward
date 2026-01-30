@@ -1,4 +1,5 @@
 """list_code_usages tool."""
+
 from __future__ import annotations
 
 import re

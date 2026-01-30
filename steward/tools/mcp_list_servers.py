@@ -1,4 +1,5 @@
 """mcp_list_servers tool - list configured MCP servers."""
+
 from __future__ import annotations
 
 from ..mcp_client import CONFIG_LOCATIONS, list_servers, load_config
@@ -13,7 +14,7 @@ def tool_mcp_list_servers() -> ToolResult:
         locations = ", ".join(CONFIG_LOCATIONS)
         return {
             "id": "mcp_list_servers",
-            "output": f"No MCP servers configured. Create a config file at one of: {locations}\n\nExample config:\n{{\n  \"mcpServers\": {{\n    \"example\": {{\n      \"command\": \"python\",\n      \"args\": [\"-m\", \"some_mcp_server\"]\n    }}\n  }}\n}}",
+            "output": f'No MCP servers configured. Create a config file at one of: {locations}\n\nExample config:\n{{\n  "mcpServers": {{\n    "example": {{\n      "command": "python",\n      "args": ["-m", "some_mcp_server"]\n    }}\n  }}\n}}',
         }
 
     servers = list_servers()

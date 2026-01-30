@@ -1,4 +1,5 @@
 """Configuration helpers and defaults."""
+
 from __future__ import annotations
 
 from os import getenv

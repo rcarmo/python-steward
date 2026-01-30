@@ -1,4 +1,5 @@
 """skill tool - discover and load skills from SKILL.md files."""
+
 from __future__ import annotations
 
 import re
@@ -12,6 +13,7 @@ from .shared import ensure_inside_workspace, normalize_path, rel_path
 @dataclass
 class SkillMetadata:
     """Parsed skill metadata from SKILL.md."""
+
     name: str
     description: str
     license: Optional[str] = None
@@ -32,8 +34,8 @@ def parse_frontmatter(content: str) -> tuple[Dict[str, str | List[str]], str]:
     if not end_match:
         return {}, content
 
-    frontmatter_text = content[3:end_match.start() + 3]
-    remaining = content[end_match.end() + 3:]
+    frontmatter_text = content[3 : end_match.start() + 3]
+    remaining = content[end_match.end() + 3 :]
 
     # Simple YAML parsing (key: value pairs and lists)
     frontmatter: Dict[str, str | List[str]] = {}

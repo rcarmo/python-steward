@@ -1,4 +1,5 @@
 """Tests for apply_patch tool."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -9,9 +10,11 @@ import pytest
 @pytest.fixture
 def patch_file(sandbox: Path):
     """Create a file and return a patch for it."""
+
     def _create(filename: str, old: str, new: str):
         (sandbox / filename).write_text(old + "\n", encoding="utf8")
         return "\n".join([f"--- a/{filename}", f"+++ b/{filename}", "@@ -1 +1 @@", f"-{old}", f"+{new}", ""])
+
     return _create
 
 
@@ -22,10 +25,13 @@ def test_apply_patch(tool_handlers, sandbox: Path, patch_file):
     assert (sandbox / "patch.txt").read_text(encoding="utf8").strip() == "new"
 
 
-@pytest.mark.parametrize("dry_run,bad_patch,expected", [
-    (True, False, "Dry-run OK"),
-    (False, True, True),  # error flag
-])
+@pytest.mark.parametrize(
+    "dry_run,bad_patch,expected",
+    [
+        (True, False, "Dry-run OK"),
+        (False, True, True),  # error flag
+    ],
+)
 def test_apply_patch_modes(tool_handlers, sandbox: Path, patch_file, dry_run, bad_patch, expected):
     patch = patch_file("dry.txt", "hello", "hi")
     if bad_patch:

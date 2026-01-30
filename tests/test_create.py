@@ -1,4 +1,5 @@
 """Tests for create tool."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,11 +7,14 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize("path,content,expected_content", [
-    ("new.txt", "hello world", "hello world"),
-    ("a/b/c/file.txt", "nested", "nested"),
-    ("empty.txt", None, ""),
-])
+@pytest.mark.parametrize(
+    "path,content,expected_content",
+    [
+        ("new.txt", "hello world", "hello world"),
+        ("a/b/c/file.txt", "nested", "nested"),
+        ("empty.txt", None, ""),
+    ],
+)
 def test_create_file(tool_handlers, sandbox: Path, path, content, expected_content):
     args = {"path": path}
     if content is not None:

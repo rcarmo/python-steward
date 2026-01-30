@@ -1,4 +1,5 @@
 """run_js tool using quickjs."""
+
 from __future__ import annotations
 
 import json
@@ -187,7 +188,9 @@ def _run_js_worker(
     ctx.add_callable("__console_log", lambda *values: _log("log", *values))
     ctx.add_callable("__console_warn", lambda *values: _log("warn", *values))
     ctx.add_callable("__console_error", lambda *values: _log("error", *values))
-    ctx.eval("const console={log:(...a)=>__console_log(...a),warn:(...a)=>__console_warn(...a),error:(...a)=>__console_error(...a)};")
+    ctx.eval(
+        "const console={log:(...a)=>__console_log(...a),warn:(...a)=>__console_warn(...a),error:(...a)=>__console_error(...a)};"
+    )
     ctx.eval(f"const SANDBOX_ROOT='{sandbox_root}';")
 
     if allow_network:

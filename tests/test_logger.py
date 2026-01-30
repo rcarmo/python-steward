@@ -1,4 +1,5 @@
 """Tests for logger module."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -63,13 +64,7 @@ def test_human_entry_variants():
 def test_logger_with_pretty(sandbox: Path):
     from steward.logger import HumanEntry, Logger
 
-    logger = Logger(
-        provider="echo",
-        model="test",
-        enable_human_logs=True,
-        enable_file_logs=False,
-        pretty=True
-    )
+    logger = Logger(provider="echo", model="test", enable_human_logs=True, enable_file_logs=False, pretty=True)
 
     # Should not raise
     logger.human(HumanEntry(title="test", body="content", variant="model"))

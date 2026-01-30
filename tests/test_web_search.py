@@ -1,4 +1,5 @@
 """Tests for web_search tool."""
+
 from __future__ import annotations
 
 import pytest
@@ -8,6 +9,7 @@ from steward.tools.web_search import tool_web_search
 
 class MockResponse:
     """Mock aiohttp response."""
+
     def __init__(self, text: str):
         self._text = text
 
@@ -20,6 +22,7 @@ class MockResponse:
 
 class MockClientSession:
     """Mock aiohttp ClientSession."""
+
     def __init__(self, response_text: str = "", raise_error: Exception | None = None):
         self._response_text = response_text
         self._raise_error = raise_error
@@ -36,6 +39,7 @@ class MockClientSession:
 
 class MockContextManager:
     """Mock context manager for aiohttp get."""
+
     def __init__(self, response_text: str, raise_error: Exception | None):
         self._response_text = response_text
         self._raise_error = raise_error
@@ -50,21 +54,24 @@ class MockContextManager:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("query,html,expected_in_output", [
-    (
-        "test query",
-        '''<div class="result">
+@pytest.mark.parametrize(
+    "query,html,expected_in_output",
+    [
+        (
+            "test query",
+            """<div class="result">
             <a class="result__a" href="https://example.com">Example Title</a>
             <a class="result__snippet">This is the snippet text.</a>
-        </div>''',
-        "meta_prompt",
-    ),
-    (
-        "xyznonexistent123",
-        "<html><body>No results</body></html>",
-        "No results found",
-    ),
-])
+        </div>""",
+            "meta_prompt",
+        ),
+        (
+            "xyznonexistent123",
+            "<html><body>No results</body></html>",
+            "No results found",
+        ),
+    ],
+)
 async def test_web_search_results(monkeypatch, query, html, expected_in_output):
     monkeypatch.setattr("steward.tools.web_search.aiohttp.ClientSession", lambda: MockClientSession(html))
 
@@ -80,9 +87,11 @@ async def test_web_search_results(monkeypatch, query, html, expected_in_output):
 @pytest.mark.asyncio
 async def test_web_search_network_error(monkeypatch):
     import aiohttp
-    monkeypatch.setattr("steward.tools.web_search.aiohttp.ClientSession",
-                        lambda: MockClientSession(raise_error=aiohttp.ClientError("Network error")))
+
+    monkeypatch.setattr(
+        "steward.tools.web_search.aiohttp.ClientSession",
+        lambda: MockClientSession(raise_error=aiohttp.ClientError("Network error")),
+    )
 
     result = await tool_web_search("test")
     assert "[error]" in result["output"]
-

@@ -1,4 +1,5 @@
 """suggest_skills tool - find skills matching a query."""
+
 from __future__ import annotations
 
 from ..skills import get_registry
@@ -21,7 +22,10 @@ def tool_suggest_skills(query: str, limit: int = 5) -> ToolResult:
     if not registry.is_discovered:
         count = registry.discover()
         if count == 0:
-            return {"id": "suggest_skills", "output": "No skills discovered in workspace. Create SKILL.md files to define skills."}
+            return {
+                "id": "suggest_skills",
+                "output": "No skills discovered in workspace. Create SKILL.md files to define skills.",
+            }
 
     matches = registry.match(query, limit=limit)
     output = registry.format_suggestions(matches)

@@ -1,4 +1,5 @@
 """LLM client implementations."""
+
 from __future__ import annotations
 
 import json
@@ -235,16 +236,29 @@ def build_client(
     if provider == "openai":
         api_key = getenv("STEWARD_OPENAI_API_KEY") or getenv("OPENAI_API_KEY") or ""
         base_url = getenv("STEWARD_OPENAI_BASE_URL") or getenv("OPENAI_BASE_URL")
-        return OpenAIClient(model, api_key, base_url=base_url, timeout_ms=timeout_ms, use_responses_api=use_responses_api)
+        return OpenAIClient(
+            model, api_key, base_url=base_url, timeout_ms=timeout_ms, use_responses_api=use_responses_api
+        )
     if provider == "azure":
         endpoint = getenv("STEWARD_AZURE_OPENAI_ENDPOINT") or getenv("AZURE_OPENAI_ENDPOINT")
         api_key = getenv("STEWARD_AZURE_OPENAI_KEY") or getenv("AZURE_OPENAI_KEY")
         deployment = getenv("STEWARD_AZURE_OPENAI_DEPLOYMENT") or getenv("AZURE_OPENAI_DEPLOYMENT")
-        api_version = getenv("STEWARD_AZURE_OPENAI_API_VERSION") or getenv("AZURE_OPENAI_API_VERSION") or "2024-10-01-preview"
+        api_version = (
+            getenv("STEWARD_AZURE_OPENAI_API_VERSION") or getenv("AZURE_OPENAI_API_VERSION") or "2024-10-01-preview"
+        )
         if not endpoint or not api_key or not deployment:
-            raise ValueError("Azure provider requires endpoint, key, and deployment (STEWARD_AZURE_OPENAI_ENDPOINT/KEY/DEPLOYMENT)")
+            raise ValueError(
+                "Azure provider requires endpoint, key, and deployment (STEWARD_AZURE_OPENAI_ENDPOINT/KEY/DEPLOYMENT)"
+            )
         base_url = f"{endpoint.rstrip('/')}/openai/deployments/{deployment}"
-        return OpenAIClient(model, api_key, base_url=base_url, default_query={"api-version": api_version}, timeout_ms=timeout_ms, use_responses_api=use_responses_api)
+        return OpenAIClient(
+            model,
+            api_key,
+            base_url=base_url,
+            default_query={"api-version": api_version},
+            timeout_ms=timeout_ms,
+            use_responses_api=use_responses_api,
+        )
     return EchoClient(model)
 
 
@@ -257,7 +271,7 @@ def _to_openai_messages(messages: List[Message]) -> List[Dict[str, Any]]:
                 {
                     "id": call["id"] or "",
                     "type": "function",
-                    "function": {"name": call["name"], "arguments": json.dumps(call["arguments"])}
+                    "function": {"name": call["name"], "arguments": json.dumps(call["arguments"])},
                 }
                 for call in msg.get("tool_calls", [])
                 if call.get("id") and call.get("name")

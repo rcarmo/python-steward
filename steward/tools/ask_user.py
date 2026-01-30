@@ -1,4 +1,5 @@
 """ask_user tool - ask the user a question and wait for response."""
+
 from __future__ import annotations
 
 import json
@@ -75,9 +76,11 @@ def tool_ask_user(question: str, choices: Optional[List[str]] = None, allow_free
 
     return {
         "id": "ask_user",
-        "output": json.dumps({
-            "question": question.strip(),
-            "response": response,
-            "choices_offered": choices,
-        }),
+        "output": json.dumps(
+            {
+                "question": question.strip(),
+                "response": response,
+                "choices_offered": choices,
+            }
+        ),
     }

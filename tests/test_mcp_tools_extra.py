@@ -1,4 +1,5 @@
 """Additional tests for mcp_list_tools."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -25,7 +26,11 @@ def test_mcp_call_invalid_server(tool_handlers, sandbox: Path):
 def test_mcp_list_tools_success(mock_config, mock_list, tool_handlers, sandbox: Path):
     mock_config.return_value = {"test-server": MagicMock()}
     mock_list.return_value = [
-        {"name": "tool1", "description": "First tool", "inputSchema": {"type": "object", "properties": {"arg1": {"type": "string"}}, "required": ["arg1"]}},
+        {
+            "name": "tool1",
+            "description": "First tool",
+            "inputSchema": {"type": "object", "properties": {"arg1": {"type": "string"}}, "required": ["arg1"]},
+        },
         {"name": "tool2", "description": "Second tool"},
     ]
 

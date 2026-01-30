@@ -1,4 +1,5 @@
 """report_intent tool - report agent's current intent."""
+
 from __future__ import annotations
 
 from ..types import ToolResult
@@ -21,7 +22,11 @@ def tool_report_intent(intent: str) -> ToolResult:
     global _current_intent
 
     if not intent or not intent.strip():
-        return {"id": "report_intent", "output": "Error: 'intent' is required and must be a non-empty string", "error": True}
+        return {
+            "id": "report_intent",
+            "output": "Error: 'intent' is required and must be a non-empty string",
+            "error": True,
+        }
 
     _current_intent = intent.strip()
 

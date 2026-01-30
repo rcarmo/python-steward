@@ -1,4 +1,5 @@
 """Tests for MCP server."""
+
 from __future__ import annotations
 
 from steward.mcp import MCPServer
@@ -16,8 +17,8 @@ def test_mcp_server_initialize():
         "params": {
             "protocolVersion": "2024-11-05",
             "capabilities": {},
-            "clientInfo": {"name": "test", "version": "1.0"}
-        }
+            "clientInfo": {"name": "test", "version": "1.0"},
+        },
     }
 
     response = server.handle_request(request)
@@ -43,6 +44,7 @@ def test_mcp_server_tools_list():
 
 def test_mcp_server_tools_call(sandbox):
     import os
+
     os.chdir(sandbox)
 
     defs, handlers = discover_tools()
@@ -55,10 +57,7 @@ def test_mcp_server_tools_call(sandbox):
         "jsonrpc": "2.0",
         "id": 3,
         "method": "tools/call",
-        "params": {
-            "name": "view",
-            "arguments": {"path": "test.txt"}
-        }
+        "params": {"name": "view", "arguments": {"path": "test.txt"}},
     }
 
     response = server.handle_request(request)
@@ -86,7 +85,7 @@ def test_mcp_server_unknown_tool():
         "jsonrpc": "2.0",
         "id": 5,
         "method": "tools/call",
-        "params": {"name": "nonexistent_tool", "arguments": {}}
+        "params": {"name": "nonexistent_tool", "arguments": {}},
     }
 
     response = server.handle_request(request)

@@ -1,4 +1,5 @@
 """list_memories tool - retrieve stored memory facts for the workspace."""
+
 from __future__ import annotations
 
 from typing import Optional

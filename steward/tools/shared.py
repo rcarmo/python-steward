@@ -1,4 +1,5 @@
 """Shared helpers for tool implementations."""
+
 from __future__ import annotations
 
 import json
@@ -16,7 +17,9 @@ TodoStatus = str
 CRAWLER_USER_AGENT = "Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com/bingbot.htm)"
 
 # Standard browser User-Agent for DuckDuckGo searches (WebKit/Safari)
-BROWSER_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15"
+BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15"
+)
 
 
 def truncate_tool_output(output: str, max_chars: int = DEFAULT_TOOL_OUTPUT_LIMIT) -> str:
@@ -118,7 +121,9 @@ def truncate_output(body: str, max_bytes: int) -> str:
     return f"{truncated.decode('utf8', errors='ignore')}\n[truncated]"
 
 
-def build_matcher(pattern: str, *, is_regex: bool, case_sensitive: bool, smart_case: bool, fixed_string: bool, word_match: bool) -> Callable[[str], bool]:
+def build_matcher(
+    pattern: str, *, is_regex: bool, case_sensitive: bool, smart_case: bool, fixed_string: bool, word_match: bool
+) -> Callable[[str], bool]:
     effective_case_sensitive = case_sensitive
     if not case_sensitive and smart_case and any(ch.isupper() for ch in pattern):
         effective_case_sensitive = True

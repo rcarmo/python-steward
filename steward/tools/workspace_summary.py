@@ -1,4 +1,5 @@
 """workspace_summary tool."""
+
 from __future__ import annotations
 
 import json

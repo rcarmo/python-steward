@@ -1,4 +1,5 @@
 """store_memory tool - persist facts for future tasks (aligned with Copilot CLI)."""
+
 from __future__ import annotations
 
 import json
@@ -48,11 +49,7 @@ def tool_store_memory(subject: str, fact: str, citations: str, reason: str, cate
     subject_words = [word for word in subject.strip().split() if word]
     if len(subject_words) < 1 or len(subject_words) > 2:
         raise ValueError("'subject' must be 1-2 words")
-    reason_sentences = [
-        sentence.strip()
-        for sentence in re_split(r"[.!?]+", reason.strip())
-        if sentence.strip()
-    ]
+    reason_sentences = [sentence.strip() for sentence in re_split(r"[.!?]+", reason.strip()) if sentence.strip()]
     if len(reason_sentences) < 2 or len(reason_sentences) > 3:
         raise ValueError("'reason' must be 2-3 sentences")
     valid_categories = {"bootstrap_and_build", "user_preferences", "general", "file_specific"}

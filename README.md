@@ -107,6 +107,32 @@ Or with the installed entry point:
 }
 ```
 
+## ACP Server Mode
+
+Steward can run as an ACP (Agent Client Protocol) agent over stdio, suitable for ACP clients like Zed:
+
+```bash
+# Run as ACP server
+python3 -m steward.acp
+
+# Or via entry point after install
+steward-acp
+```
+
+Example Zed config:
+
+```json
+{
+  "agent_servers": {
+    "Steward (ACP)": {
+      "command": "steward-acp",
+      "args": [],
+      "cwd": "/path/to/your/workspace"
+    }
+  }
+}
+```
+
 ## MCP Client Mode
 
 Steward can also consume tools from external MCP servers. Configure servers in `.steward/mcp.json`, `mcp.json`, or `.vscode/mcp.json`:

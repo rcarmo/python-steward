@@ -1,4 +1,5 @@
 """Typed structures used across the steward runtime."""
+
 from __future__ import annotations
 
 from typing import Any, Awaitable, Callable, Dict, List, Literal, Optional, Protocol, TypedDict, Union
@@ -39,6 +40,7 @@ class ToolResult(TypedDict, total=False):
 
 class UsageStats(TypedDict, total=False):
     """Token usage statistics from LLM API response."""
+
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
@@ -51,6 +53,7 @@ class LLMResult(TypedDict, total=False):
     usage: Optional[UsageStats]  # Token usage including cache stats
     response_id: Optional[str]  # For Responses API: chain conversations with previous_response_id
 
+
 StreamHandler = Callable[[str, bool], None]
 AsyncStreamHandler = Callable[[str, bool], Awaitable[None]]
 
@@ -62,8 +65,7 @@ class LLMClient(Protocol):
         tools: Optional[List[ToolDefinition]] = None,
         stream_handler: Optional[Union[StreamHandler, AsyncStreamHandler]] = None,
         previous_response_id: Optional[str] = None,  # For Responses API conversation chaining
-    ) -> LLMResult:
-        ...
+    ) -> LLMResult: ...
 
 
 # Tool handlers can be sync or async

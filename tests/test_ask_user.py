@@ -1,4 +1,5 @@
 """Tests for ask_user tool."""
+
 import json
 
 import pytest

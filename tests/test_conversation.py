@@ -1,4 +1,5 @@
 """Tests for conversation history management."""
+
 from __future__ import annotations
 
 from steward.conversation import (
@@ -27,9 +28,7 @@ def test_count_tokens_with_tool_calls():
         {
             "role": "assistant",
             "content": "I'll list the files.",
-            "tool_calls": [
-                {"id": "call_1", "name": "view", "arguments": {"path": "."}}
-            ]
+            "tool_calls": [{"id": "call_1", "name": "view", "arguments": {"path": "."}}],
         },
         {"role": "tool", "content": "file1.txt\nfile2.txt", "tool_call_id": "call_1"},
     ]

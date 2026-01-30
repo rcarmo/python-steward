@@ -1,4 +1,5 @@
 """Tests for interactive bash tools (write_bash, read_bash, stop_bash, list_bash)."""
+
 import os
 
 import pytest

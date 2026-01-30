@@ -1,4 +1,5 @@
 """Tests for skills discovery tools."""
+
 from __future__ import annotations
 
 from pathlib import Path

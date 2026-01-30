@@ -1,4 +1,5 @@
 """stop_bash tool - stop an async bash session."""
+
 from __future__ import annotations
 
 from ..types import ToolResult

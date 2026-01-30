@@ -31,6 +31,7 @@ def tool_handlers() -> Dict[str, ToolHandler]:
     os.environ["STEWARD_ALLOW_EXECUTE"] = "1"
     # Mock MCP config to enable MCP tools for testing
     import steward.tools.registry as reg
+
     original_has_mcp = reg._has_mcp_servers
     reg._has_mcp_servers = lambda: True
     try:

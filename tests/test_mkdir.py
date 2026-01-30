@@ -1,4 +1,5 @@
 """Tests for mkdir tool."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,10 +7,13 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize("path,expected_output", [
-    ("newdir", "Created"),
-    ("a/b/c", "Created"),
-])
+@pytest.mark.parametrize(
+    "path,expected_output",
+    [
+        ("newdir", "Created"),
+        ("a/b/c", "Created"),
+    ],
+)
 def test_mkdir_creates_directory(tool_handlers, sandbox: Path, path, expected_output):
     result = tool_handlers["mkdir"]({"path": path})
     assert expected_output in result["output"]

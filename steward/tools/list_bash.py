@@ -1,4 +1,5 @@
 """list_bash tool - list active bash sessions."""
+
 from __future__ import annotations
 
 from ..types import ToolResult

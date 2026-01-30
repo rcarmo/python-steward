@@ -1,4 +1,5 @@
 """Steward orchestrator loop."""
+
 from __future__ import annotations
 
 import asyncio
@@ -50,6 +51,7 @@ class RunnerOptions:
 @dataclass
 class RunnerResult:
     """Result from run_steward including conversation history for continuation."""
+
     response: Optional[str]
     messages: List[Message]  # Full conversation history
     last_response_id: Optional[str] = None  # For Responses API conversation chaining
@@ -98,13 +100,17 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
         skill_count = registry.discover()
         if skill_count > 0:
             skill_names = [s.name for s in registry.all()]
-            logger.human(HumanEntry(title="skills", body=f"Discovered {skill_count} skill(s): {', '.join(skill_names)}", variant="tool"))
+            logger.human(
+                HumanEntry(
+                    title="skills", body=f"Discovered {skill_count} skill(s): {', '.join(skill_names)}", variant="tool"
+                )
+            )
 
     # Detect plan mode from prompt prefix
     prompt = options.prompt
     plan_mode = prompt.startswith(PLAN_MODE_PREFIX)
     if plan_mode:
-        prompt = prompt[len(PLAN_MODE_PREFIX):].strip()
+        prompt = prompt[len(PLAN_MODE_PREFIX) :].strip()
 
     # Initialize session if requested
     session_context = None
@@ -125,21 +131,19 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
         if should_truncate(messages, max_history_tokens, model):
             messages, summary = compact_history(messages, keep_recent_turns=5, model=model)
             if summary:
-                logger.human(HumanEntry(
-                    title="history",
-                    body=f"Compacted: {summary[:80]}...",
-                    variant="tool"
-                ))
+                logger.human(HumanEntry(title="history", body=f"Compacted: {summary[:80]}...", variant="tool"))
 
             # If still too large after compaction, truncate
             if should_truncate(messages, max_history_tokens, model):
                 messages, dropped = truncate_history(messages, max_history_tokens, model)
                 if dropped > 0:
-                    logger.human(HumanEntry(
-                        title="history",
-                        body=f"Truncated {dropped} tokens from conversation history",
-                        variant="warn"
-                    ))
+                    logger.human(
+                        HumanEntry(
+                            title="history",
+                            body=f"Truncated {dropped} tokens from conversation history",
+                            variant="warn",
+                        )
+                    )
     else:
         # Build skill context for system prompt
         skill_context = _build_skill_context(registry, prompt)
@@ -207,14 +211,18 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
             prompt = usage.get("prompt_tokens", 0)
             if cached > 0 and prompt > 0:
                 cache_pct = int(100 * cached / prompt)
-                logger.json({"type": "cache_stats", "cached_tokens": cached, "prompt_tokens": prompt, "cache_pct": cache_pct})
+                logger.json(
+                    {"type": "cache_stats", "cached_tokens": cached, "prompt_tokens": prompt, "cache_pct": cache_pct}
+                )
 
         tool_calls = response.get("toolCalls") or []
         # Filter out invalid tool calls (missing name)
         tool_calls = [call for call in tool_calls if call.get("name")]
         if tool_calls:
             content = (response.get("content") or "").strip()
-            thought = format_tool_calls(tool_calls) if content in {"model"} or (content and "args=" in content) else content
+            thought = (
+                format_tool_calls(tool_calls) if content in {"model"} or (content and "args=" in content) else content
+            )
             if thought and not options.stream_handler:
                 logger.human(HumanEntry(title="model", body=thought, variant="model"))
             logger.human(
@@ -227,9 +235,7 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
             messages.append({"role": "assistant", "content": response.get("content"), "tool_calls": tool_calls})
 
             # Execute tool calls in parallel
-            results = await execute_tools_parallel(
-                tool_calls, tool_handlers, client, logger, step
-            )
+            results = await execute_tools_parallel(tool_calls, tool_handlers, client, logger, step)
 
             # Append results to messages
             for call, result in zip(tool_calls, results):
@@ -276,9 +282,7 @@ async def execute_tools_parallel(
                 result = await handler(call["arguments"])
             else:
                 # Run sync handler in thread pool to avoid blocking
-                result = await asyncio.get_event_loop().run_in_executor(
-                    None, handler, call["arguments"]
-                )
+                result = await asyncio.get_event_loop().run_in_executor(None, handler, call["arguments"])
 
             # Handle meta-tool: if result contains meta_prompt, synthesize via LLM
             if result.get("meta_prompt"):
@@ -332,7 +336,9 @@ async def call_model_with_policies(
         last_error: Optional[Exception] = None
         for attempt in range(1, attempts + 1):
             try:
-                result = await client.generate(messages, tools, stream_handler=stream_handler, previous_response_id=previous_response_id)
+                result = await client.generate(
+                    messages, tools, stream_handler=stream_handler, previous_response_id=previous_response_id
+                )
                 if attempt > 1:
                     logger.human(HumanEntry(title="model", body=f"retry {attempt} succeeded", variant="model"))
                     logger.json({"type": "model_retry_success", "attempt": attempt})
@@ -380,7 +386,10 @@ async def synthesize_meta_tool_async(client: LLMClient, result: dict, logger: Lo
     meta_prompt = result.get("meta_prompt", "")
     logger.human(HumanEntry(title="meta-tool", body="synthesizing response...", variant="tool"))
     synthesis_messages: List[Message] = [
-        {"role": "system", "content": "You are a helpful assistant that synthesizes information from search results into clear, cited answers."},
+        {
+            "role": "system",
+            "content": "You are a helpful assistant that synthesizes information from search results into clear, cited answers.",
+        },
         {"role": "user", "content": meta_prompt},
     ]
     stop_spinner = logger.start_spinner()

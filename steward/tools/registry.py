@@ -10,6 +10,7 @@ CACHING NOTE: Tool definitions are sorted alphabetically by name to ensure
 consistent ordering across requests. This maximizes prompt cache hit rates
 since OpenAI caches prompts with identical prefixes (first 1024+ tokens).
 """
+
 from __future__ import annotations
 
 import importlib
@@ -77,8 +78,7 @@ def _extract_parameters_from_signature(handler: Callable) -> Dict[str, Any]:
         type_hints = {}
 
     # Skip 'args' parameter (legacy dict-style handlers)
-    params = [(name, param) for name, param in sig.parameters.items()
-              if name not in ("self", "args", "kwargs")]
+    params = [(name, param) for name, param in sig.parameters.items() if name not in ("self", "args", "kwargs")]
 
     if not params:
         return {"type": "object", "properties": {}}
@@ -115,8 +115,7 @@ def _build_definition_from_handler(name: str, handler: Callable) -> ToolDefiniti
 def _create_wrapper(handler: Callable) -> ToolHandler:
     """Create a wrapper that converts dict args to typed parameters."""
     sig = inspect.signature(handler)
-    params = [(name, param) for name, param in sig.parameters.items()
-              if name not in ("self", "kwargs")]
+    params = [(name, param) for name, param in sig.parameters.items() if name not in ("self", "kwargs")]
 
     # Check if it's already a dict-style handler
     if len(params) == 1 and params[0][0] == "args":
@@ -135,13 +134,17 @@ def _create_wrapper(handler: Callable) -> ToolHandler:
             else:
                 missing.append(name)
         if missing:
-            raise ValueError(f"'{', '.join(missing)}' {'is' if len(missing) == 1 else 'are'} required and must be provided")
+            raise ValueError(
+                f"'{', '.join(missing)}' {'is' if len(missing) == 1 else 'are'} required and must be provided"
+            )
         return kwargs
 
     # Create async wrapper if handler is async
     if inspect.iscoroutinefunction(handler):
+
         async def async_wrapper(args: Dict) -> Any:
             return await handler(**_build_kwargs(args))
+
         return async_wrapper
 
     def wrapper(args: Dict) -> Any:
@@ -177,6 +180,7 @@ def _discover_from_module(module: Any) -> Tuple[List[Tuple[str, Callable]], List
 def _has_mcp_servers() -> bool:
     """Check if any MCP servers are configured."""
     from ..mcp_client import load_config
+
     return bool(load_config())
 
 

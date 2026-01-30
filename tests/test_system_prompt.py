@@ -1,4 +1,5 @@
 """Tests for system_prompt module."""
+
 import json
 import os
 from pathlib import Path
@@ -53,8 +54,8 @@ def test_build_system_prompt_tool_guidance():
     prompt = build_system_prompt(["bash", "edit", "grep"])
 
     # bash guidance
-    assert "mode=\"sync\"" in prompt or 'mode="sync"' in prompt
-    assert "mode=\"async\"" in prompt or 'mode="async"' in prompt
+    assert 'mode="sync"' in prompt or 'mode="sync"' in prompt
+    assert 'mode="async"' in prompt or 'mode="async"' in prompt
     assert "detach" in prompt
 
     # edit guidance

@@ -1,4 +1,5 @@
 """multi_replace_string_in_file tool."""
+
 from __future__ import annotations
 
 from typing import Dict, List
@@ -54,7 +55,9 @@ def tool_multi_replace_string_in_file(replacements: List[Dict[str, str]]) -> Too
 
             occurrences = content.count(old_string)
             if occurrences > 1:
-                errors.append(f"Replacement {idx + 1}: String appears {occurrences} times in {rel_path(abs_path)}; must be unique")
+                errors.append(
+                    f"Replacement {idx + 1}: String appears {occurrences} times in {rel_path(abs_path)}; must be unique"
+                )
                 continue
 
             new_content = content.replace(old_string, new_string, 1)
@@ -73,4 +76,9 @@ def tool_multi_replace_string_in_file(replacements: List[Dict[str, str]]) -> Too
     output = "\n".join(summary_parts)
     has_error = bool(errors)
 
-    return {"id": "multi_replace_string_in_file", "output": output, "error": has_error, "next_tool": ["view", "git_diff"]}
+    return {
+        "id": "multi_replace_string_in_file",
+        "output": output,
+        "error": has_error,
+        "next_tool": ["view", "git_diff"],
+    }

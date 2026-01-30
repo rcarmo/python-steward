@@ -1,4 +1,5 @@
 """Tests for llm module."""
+
 from __future__ import annotations
 
 import asyncio
@@ -15,10 +16,13 @@ def echo_client():
     return build_client("echo", "test")
 
 
-@pytest.mark.parametrize("provider,model,expect_echo", [
-    ("echo", "test-model", True),
-    ("unknown_provider", "model", True),
-])
+@pytest.mark.parametrize(
+    "provider,model,expect_echo",
+    [
+        ("echo", "test-model", True),
+        ("unknown_provider", "model", True),
+    ],
+)
 def test_build_client_fallbacks(provider, model, expect_echo):
     from steward.llm import build_client
 
@@ -35,11 +39,14 @@ def test_build_client_openai():
     assert client is not None
 
 
-@patch.dict(os.environ, {
-    "STEWARD_AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
-    "STEWARD_AZURE_OPENAI_KEY": "test-key",
-    "STEWARD_AZURE_OPENAI_DEPLOYMENT": "test-deployment"
-})
+@patch.dict(
+    os.environ,
+    {
+        "STEWARD_AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
+        "STEWARD_AZURE_OPENAI_KEY": "test-key",
+        "STEWARD_AZURE_OPENAI_DEPLOYMENT": "test-deployment",
+    },
+)
 def test_build_client_azure():
     from steward.llm import build_client
 
@@ -82,9 +89,11 @@ def test_to_openai_messages():
     messages = [
         {"role": "system", "content": "System prompt"},
         {"role": "user", "content": "User message"},
-        {"role": "assistant", "content": "Response", "tool_calls": [
-            {"id": "1", "name": "test", "arguments": {"a": 1}}
-        ]},
+        {
+            "role": "assistant",
+            "content": "Response",
+            "tool_calls": [{"id": "1", "name": "test", "arguments": {"a": 1}}],
+        },
         {"role": "tool", "content": "Tool result", "tool_call_id": "1"},
     ]
 
@@ -101,7 +110,7 @@ def test_to_openai_tool():
     tool = {
         "name": "test_tool",
         "description": "A test tool",
-        "parameters": {"type": "object", "properties": {"arg": {"type": "string"}}}
+        "parameters": {"type": "object", "properties": {"arg": {"type": "string"}}},
     }
 
     result = _to_openai_tool(tool)
@@ -116,21 +125,32 @@ def test_to_tool_calls_empty():
     assert _to_tool_calls([]) is None
 
 
-@pytest.mark.parametrize("usage_details,expected_cached", [
-    (None, None),
-    (type("D", (), {"cached_tokens": 800})(), 800),
-])
+@pytest.mark.parametrize(
+    "usage_details,expected_cached",
+    [
+        (None, None),
+        (type("D", (), {"cached_tokens": 800})(), 800),
+    ],
+)
 def test_extract_usage(usage_details, expected_cached):
     from steward.llm import _extract_usage
 
-    completion = type("C", (), {
-        "usage": type("U", (), {
-            "prompt_tokens": 1000,
-            "completion_tokens": 50,
-            "total_tokens": 1050,
-            "prompt_tokens_details": usage_details
-        })()
-    })()
+    completion = type(
+        "C",
+        (),
+        {
+            "usage": type(
+                "U",
+                (),
+                {
+                    "prompt_tokens": 1000,
+                    "completion_tokens": 50,
+                    "total_tokens": 1050,
+                    "prompt_tokens_details": usage_details,
+                },
+            )()
+        },
+    )()
 
     result = _extract_usage(completion)
     assert result["prompt_tokens"] == 1000
@@ -140,7 +160,7 @@ def test_extract_usage(usage_details, expected_cached):
         assert result["cached_tokens"] == expected_cached
 
 
-@patch('steward.llm.AsyncOpenAI')
+@patch("steward.llm.AsyncOpenAI")
 def test_openai_client_empty_choices(mock_openai):
     from steward.llm import OpenAIClient
 
@@ -156,16 +176,20 @@ def test_openai_client_empty_choices(mock_openai):
 
 
 @patch.dict(os.environ, {"STEWARD_OPENAI_API_KEY": "test-key", "STEWARD_USE_RESPONSES_API": "1"})
-@patch('steward.llm.AsyncOpenAI')
+@patch("steward.llm.AsyncOpenAI")
 def test_openai_client_responses_api_with_previous_id(mock_openai):
     from steward.llm import OpenAIClient
 
-    response = type("Resp", (), {
-        "output_text": "ok",
-        "id": "resp_123",
-        "output": [],
-        "usage": None,
-    })()
+    response = type(
+        "Resp",
+        (),
+        {
+            "output_text": "ok",
+            "id": "resp_123",
+            "output": [],
+            "usage": None,
+        },
+    )()
 
     async def mock_create(**_kwargs):
         return response
@@ -174,25 +198,31 @@ def test_openai_client_responses_api_with_previous_id(mock_openai):
     mock_client.responses.create = mock_create
     client = OpenAIClient("gpt-4", api_key="test", use_responses_api=True)
 
-    result = asyncio.run(client.generate(
-        [{"role": "system", "content": "System"}, {"role": "user", "content": "hi"}],
-        previous_response_id="resp_prev"
-    ))
+    result = asyncio.run(
+        client.generate(
+            [{"role": "system", "content": "System"}, {"role": "user", "content": "hi"}],
+            previous_response_id="resp_prev",
+        )
+    )
     assert result["content"] == "ok"
     assert result.get("response_id") == "resp_123"
 
 
 @patch.dict(os.environ, {"STEWARD_OPENAI_API_KEY": "test-key", "STEWARD_USE_RESPONSES_API": "auto"})
-@patch('steward.llm.AsyncOpenAI')
+@patch("steward.llm.AsyncOpenAI")
 def test_openai_client_auto_selects_responses(mock_openai):
     from steward.llm import OpenAIClient
 
-    response = type("Resp", (), {
-        "output_text": "ok",
-        "id": "resp_auto",
-        "output": [],
-        "usage": None,
-    })()
+    response = type(
+        "Resp",
+        (),
+        {
+            "output_text": "ok",
+            "id": "resp_auto",
+            "output": [],
+            "usage": None,
+        },
+    )()
 
     async def mock_create(**_kwargs):
         return response
@@ -211,7 +241,7 @@ def test_to_responses_tool():
     tool = {
         "name": "test_tool",
         "description": "A test tool",
-        "parameters": {"type": "object", "properties": {"arg": {"type": "string"}}}
+        "parameters": {"type": "object", "properties": {"arg": {"type": "string"}}},
     }
 
     result = _to_responses_tool(tool)
@@ -220,12 +250,29 @@ def test_to_responses_tool():
     assert result["description"] == "A test tool"
 
 
-@pytest.mark.parametrize("output,expected_count", [
-    (None, 0),
-    ([], 0),
-    ([type("Item", (), {"type": "other"})()], 0),
-    ([type("Item", (), {"type": "function_call", "call_id": "call_123", "name": "view", "arguments": '{"path": "test.py"}'})()], 1),
-])
+@pytest.mark.parametrize(
+    "output,expected_count",
+    [
+        (None, 0),
+        ([], 0),
+        ([type("Item", (), {"type": "other"})()], 0),
+        (
+            [
+                type(
+                    "Item",
+                    (),
+                    {
+                        "type": "function_call",
+                        "call_id": "call_123",
+                        "name": "view",
+                        "arguments": '{"path": "test.py"}',
+                    },
+                )()
+            ],
+            1,
+        ),
+    ],
+)
 def test_extract_responses_tool_calls(output, expected_count):
     from steward.llm import _extract_responses_tool_calls
 
@@ -243,7 +290,7 @@ def test_echo_client_returns_response_id(echo_client):
     assert result.get("response_id") == "echo-123"
 
 
-@patch('steward.llm.AsyncOpenAI')
+@patch("steward.llm.AsyncOpenAI")
 def test_openai_stream_tool_calls_none_keeps_previous(mock_openai):
     from steward.llm import OpenAIClient
 
@@ -261,9 +308,17 @@ def test_openai_stream_tool_calls_none_keeps_previous(mock_openai):
             self.choices = [Choice(delta)]
 
     stream_events = [
-        Event(Delta(tool_calls=[
-            type("Call", (), {"index": 0, "id": "1", "function": type("Fn", (), {"name": "view", "arguments": "{}"})()})()
-        ])),
+        Event(
+            Delta(
+                tool_calls=[
+                    type(
+                        "Call",
+                        (),
+                        {"index": 0, "id": "1", "function": type("Fn", (), {"name": "view", "arguments": "{}"})()},
+                    )()
+                ]
+            )
+        ),
         Event(Delta(content="ok", tool_calls=None)),
     ]
 

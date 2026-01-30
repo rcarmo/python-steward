@@ -1,4 +1,5 @@
 """MCP client for connecting to external MCP servers."""
+
 from __future__ import annotations
 
 import json
@@ -19,6 +20,7 @@ CONFIG_LOCATIONS = [
 @dataclass
 class MCPServerConfig:
     """Configuration for an MCP server."""
+
     name: str
     command: str
     args: List[str] = field(default_factory=list)
@@ -29,6 +31,7 @@ class MCPServerConfig:
 @dataclass
 class MCPConnection:
     """Active connection to an MCP server."""
+
     config: MCPServerConfig
     process: subprocess.Popen
     request_id: int = 0
@@ -95,6 +98,7 @@ def _start_server(config: MCPServerConfig) -> MCPConnection:
     env = None
     if config.env:
         import os
+
         env = os.environ.copy()
         env.update(config.env)
 
@@ -167,14 +171,18 @@ def _send_notification(conn: MCPConnection, method: str, params: Optional[Dict] 
 
 def _initialize(conn: MCPConnection) -> None:
     """Initialize the MCP connection."""
-    _send_request(conn, "initialize", {
-        "protocolVersion": "2024-11-05",
-        "capabilities": {},
-        "clientInfo": {
-            "name": "steward",
-            "version": "0.1.0",
+    _send_request(
+        conn,
+        "initialize",
+        {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {
+                "name": "steward",
+                "version": "0.1.0",
+            },
         },
-    })
+    )
 
     # Send initialized notification
     _send_notification(conn, "initialized")
@@ -200,13 +208,15 @@ def list_servers() -> List[Dict[str, Any]]:
                     connected = True
                     tool_count = len(conn.tools)
 
-        servers.append({
-            "name": name,
-            "command": config.command,
-            "args": config.args,
-            "connected": connected,
-            "tool_count": tool_count,
-        })
+        servers.append(
+            {
+                "name": name,
+                "command": config.command,
+                "args": config.args,
+                "connected": connected,
+                "tool_count": tool_count,
+            }
+        )
     return servers
 
 
@@ -220,10 +230,14 @@ def call_tool(server_name: str, tool_name: str, arguments: Dict[str, Any]) -> st
     """Call a tool on an MCP server."""
     conn = get_connection(server_name)
 
-    result = _send_request(conn, "tools/call", {
-        "name": tool_name,
-        "arguments": arguments,
-    })
+    result = _send_request(
+        conn,
+        "tools/call",
+        {
+            "name": tool_name,
+            "arguments": arguments,
+        },
+    )
 
     # Extract text content from response
     content = result.get("content", [])

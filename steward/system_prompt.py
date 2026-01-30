@@ -1,4 +1,5 @@
 """System prompt generation for Steward."""
+
 from __future__ import annotations
 
 from os import getcwd
@@ -47,7 +48,9 @@ def load_agents_instructions() -> Optional[str]:
             repo_path = git_root_path / name
             if repo_path.exists() and repo_path != cwd / name:
                 try:
-                    instructions.append(f"# Repository instructions ({name})\n{repo_path.read_text(encoding='utf8').strip()}")
+                    instructions.append(
+                        f"# Repository instructions ({name})\n{repo_path.read_text(encoding='utf8').strip()}"
+                    )
                 except OSError:
                     pass
                 break
@@ -57,7 +60,9 @@ def load_agents_instructions() -> Optional[str]:
         local_path = cwd / name
         if local_path.exists():
             try:
-                instructions.append(f"# Directory instructions ({name})\n{local_path.read_text(encoding='utf8').strip()}")
+                instructions.append(
+                    f"# Directory instructions ({name})\n{local_path.read_text(encoding='utf8').strip()}"
+                )
             except OSError:
                 pass
             break
