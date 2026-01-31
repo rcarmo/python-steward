@@ -12,11 +12,11 @@ from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
 
-from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, detect_provider, ensure_dotenv_loaded
 from .acp_events import DANGEROUS_TOOLS
-from .tools.ask_user import tool_ask_user
+from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, detect_provider, ensure_dotenv_loaded
 from .runner import RunnerOptions, RunnerResult, run_steward_with_history
 from .session import generate_session_id
+from .tools.ask_user import tool_ask_user
 from .types import Message
 
 # History file location

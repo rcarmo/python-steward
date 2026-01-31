@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Callable
 
 from ..config import DEFAULT_TOOL_OUTPUT_LIMIT, env_int, get_sandbox_root
-from ..utils import truncate_output
 
 TodoStatus = str
 

@@ -12,7 +12,8 @@ from typing import Dict, Optional
 
 from ..config import env_list
 from ..types import ToolResult
-from .shared import audit_execute, ensure_inside_workspace, env_cap, normalize_path, truncate_output
+from ..utils import truncate_output
+from .shared import audit_execute, ensure_inside_workspace, env_cap, normalize_path
 
 # Session storage for async processes
 _sessions: Dict[str, dict] = {}

@@ -455,7 +455,7 @@ async def test_acp_mcp_servers_persisted(tmp_path: Any) -> None:
 async def test_acp_thought_streaming() -> None:
     """Test thought events are sent to client."""
     from steward.acp import StewardAcpAgent
-    from steward.acp_events import AcpEventQueue, AcpEventType
+    from steward.acp_events import AcpEventQueue
 
     agent = StewardAcpAgent()
     client = FakeClient()

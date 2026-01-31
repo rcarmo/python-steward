@@ -73,7 +73,7 @@ def test_is_binary_buffer():
 
 
 def test_truncate_output():
-    from steward.tools.shared import truncate_output
+    from steward.utils import truncate_output
 
     short = "short text"
     assert truncate_output(short, 100) == short

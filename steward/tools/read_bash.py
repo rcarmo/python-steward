@@ -6,8 +6,8 @@ from time import sleep
 from typing import Optional
 
 from ..types import ToolResult
+from ..utils import truncate_output
 from .bash import get_session
-from .shared import truncate_output
 
 
 def tool_read_bash(sessionId: str, delay: Optional[float] = None) -> ToolResult:

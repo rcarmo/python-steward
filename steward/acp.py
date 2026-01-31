@@ -29,13 +29,11 @@ from acp.schema import (
     AgentCapabilities,
     AgentPlanUpdate,
     AgentThoughtChunk,
+    AudioContentBlock,
     AvailableCommand,
     AvailableCommandsUpdate,
-    AudioContentBlock,
     ClientCapabilities,
     EmbeddedResourceContentBlock,
-    SessionInfoUpdate,
-    FileSystemCapability,
     ForkSessionResponse,
     HttpMcpServer,
     ImageContentBlock,
@@ -49,6 +47,7 @@ from acp.schema import (
     SessionCapabilities,
     SessionForkCapabilities,
     SessionInfo,
+    SessionInfoUpdate,
     SessionListCapabilities,
     SessionMode,
     SessionModeState,
@@ -62,7 +61,6 @@ from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, PLAN_MODE_PREFIX, detect_p
 from .logger import HumanEntry, Logger
 from .runner import RunnerOptions, run_steward_async
 from .session import DEFAULT_SESSION_DIR, generate_session_id
-from .tools import discover_tools
 from .utils import get_version
 
 # Supported modes for Steward

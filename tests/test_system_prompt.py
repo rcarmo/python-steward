@@ -1,10 +1,15 @@
 """Tests for system_prompt module."""
 
 import json
-import os
+from os import getcwd
 from pathlib import Path
 
-from steward.system_prompt import build_system_prompt, default_system_prompt, get_environment_context, load_agents_instructions
+from steward.system_prompt import (
+    build_system_prompt,
+    default_system_prompt,
+    get_environment_context,
+    load_agents_instructions,
+)
 from steward.utils import get_version
 
 
@@ -93,7 +98,7 @@ def test_get_environment_context():
     """Test environment context generation."""
     context = get_environment_context()
     assert "Current working directory" in context
-    assert os.getcwd() in context
+    assert getcwd() in context
 
 
 def test_build_system_prompt_session_context():

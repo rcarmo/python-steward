@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Optional
 
 from ..types import ToolResult
-from .shared import ensure_inside_workspace, normalize_path, run_captured, truncate_output
+from ..utils import truncate_output
+from .shared import ensure_inside_workspace, normalize_path, run_captured
 
 
 def tool_git_status(path: Optional[str] = None) -> ToolResult:

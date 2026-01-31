@@ -11,7 +11,8 @@ from typing import Any, Dict, List, Optional
 import quickjs
 
 from ..types import ToolResult
-from .shared import ensure_inside_workspace, env_cap, normalize_path, truncate_output
+from ..utils import truncate_output
+from .shared import ensure_inside_workspace, env_cap, normalize_path
 
 JS_DEFAULT_TIMEOUT_MS = env_cap("STEWARD_JS_TIMEOUT_MS", 2000)
 JS_MAX_OUTPUT_BYTES = env_cap("STEWARD_JS_MAX_OUTPUT_BYTES", 16000)
