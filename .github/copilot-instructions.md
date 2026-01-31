@@ -23,6 +23,8 @@ Always use the Makefile for development tasks. Never run raw `pytest` or `ruff` 
 2. **After making changes**: Run `make check` to verify no regressions
 3. **Full cleanup**: Use `make clean` for temp artifacts
 
+**Always prefer `make check` for validation.** Do not run `pytest` or `ruff` directly—use `make test`, `make lint`, or `make check`.
+
 ### Version Management
 
 - `make bump-patch` - Bump patch version and create git tag
