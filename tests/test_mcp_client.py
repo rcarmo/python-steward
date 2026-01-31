@@ -20,20 +20,6 @@ def test_mcp_list_servers_with_config(tool_handlers, sandbox: Path):
     assert "not connected" in result["output"]
 
 
-def test_mcp_list_tools_unknown_server(tool_handlers, sandbox: Path):
-    import pytest
-
-    with pytest.raises(ValueError, match="Unknown server"):
-        tool_handlers["mcp_list_tools"]({"server": "nonexistent"})
-
-
-def test_mcp_call_unknown_server(tool_handlers, sandbox: Path):
-    import pytest
-
-    with pytest.raises(ValueError, match="Unknown server"):
-        tool_handlers["mcp_call"]({"server": "nonexistent", "tool": "test"})
-
-
 def test_mcp_config_locations(sandbox: Path):
     from steward.mcp_client import load_config
 

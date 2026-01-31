@@ -9,55 +9,6 @@ import pytest
 from steward.tools.web_fetch import tool_web_fetch
 
 
-class MockResponse:
-    """Mock aiohttp response."""
-
-    def __init__(self, text: str, content_type: str = "text/html"):
-        self._text = text
-        self.headers = {"content-type": content_type}
-
-    async def text(self):
-        return self._text
-
-    def raise_for_status(self):
-        pass
-
-
-class MockClientSession:
-    """Mock aiohttp ClientSession."""
-
-    def __init__(self, response_text: str = "", content_type: str = "text/html", raise_error: Exception | None = None):
-        self._response_text = response_text
-        self._content_type = content_type
-        self._raise_error = raise_error
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *args):
-        pass
-
-    def get(self, *args, **kwargs):
-        return MockContextManager(self._response_text, self._content_type, self._raise_error)
-
-
-class MockContextManager:
-    """Mock context manager for aiohttp get."""
-
-    def __init__(self, response_text: str, content_type: str, raise_error: Exception | None):
-        self._response_text = response_text
-        self._content_type = content_type
-        self._raise_error = raise_error
-
-    async def __aenter__(self):
-        if self._raise_error:
-            raise self._raise_error
-        return MockResponse(self._response_text, self._content_type)
-
-    async def __aexit__(self, *args):
-        pass
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "data_url,expected",
@@ -95,10 +46,10 @@ async def test_web_fetch_pagination():
 
 
 @pytest.mark.asyncio
-async def test_web_fetch_http(monkeypatch):
-    monkeypatch.setattr(
+async def test_web_fetch_http(mock_aiohttp_session):
+    mock_aiohttp_session(
         "steward.tools.web_fetch.aiohttp.ClientSession",
-        lambda: MockClientSession("<html><body><h1>Test</h1></body></html>"),
+        response_text="<html><body><h1>Test</h1></body></html>",
     )
 
     result = await tool_web_fetch("https://example.com")

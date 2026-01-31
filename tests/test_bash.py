@@ -8,16 +8,6 @@ from pathlib import Path
 import pytest
 
 
-@pytest.fixture
-def enable_execute():
-    """Enable execute for bash tests."""
-    os.environ["STEWARD_ALLOW_EXECUTE"] = "1"
-    yield
-    # Cleanup any test-specific env vars
-    for key in ["STEWARD_EXEC_ALLOW", "STEWARD_EXEC_DENY", "STEWARD_EXEC_AUDIT"]:
-        os.environ.pop(key, None)
-
-
 @pytest.mark.parametrize(
     "command,expected",
     [

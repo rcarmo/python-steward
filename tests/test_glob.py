@@ -7,19 +7,6 @@ from pathlib import Path
 import pytest
 
 
-@pytest.fixture
-def glob_files(sandbox: Path):
-    """Create test files for glob tests."""
-
-    def _create(files: list[str], subdirs: list[str] | None = None):
-        for subdir in subdirs or []:
-            (sandbox / subdir).mkdir(parents=True, exist_ok=True)
-        for name in files:
-            (sandbox / name).write_text("", encoding="utf8")
-
-    return _create
-
-
 @pytest.mark.parametrize(
     "files,subdirs,pattern,expected,not_expected",
     [
@@ -33,8 +20,8 @@ def glob_files(sandbox: Path):
         ([], None, "*.xyz", ["No matching files"], []),
     ],
 )
-def test_glob(tool_handlers, sandbox: Path, glob_files, files, subdirs, pattern, expected, not_expected):
-    glob_files(files, subdirs)
+def test_glob(tool_handlers, sandbox: Path, make_files, files, subdirs, pattern, expected, not_expected):
+    make_files(files, subdirs)
     result = tool_handlers["glob"]({"pattern": pattern})
     for exp in expected:
         assert exp in result["output"]

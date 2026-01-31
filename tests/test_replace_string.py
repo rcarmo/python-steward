@@ -10,18 +10,6 @@ from steward.tools.multi_replace_string_in_file import tool_multi_replace_string
 from steward.tools.replace_string_in_file import tool_replace_string_in_file as replace_handler
 
 
-@pytest.fixture
-def test_file(sandbox: Path):
-    """Create a test file with given content."""
-
-    def _create(content: str, name: str = "test.py"):
-        f = sandbox / name
-        f.write_text(content, encoding="utf8")
-        return f
-
-    return _create
-
-
 @pytest.mark.parametrize(
     "initial,old,new,expected",
     [
@@ -34,8 +22,8 @@ def test_file(sandbox: Path):
         ),
     ],
 )
-def test_replace_string_success(sandbox: Path, test_file, initial, old, new, expected):
-    f = test_file(initial)
+def test_replace_string_success(sandbox: Path, make_file, initial, old, new, expected):
+    f = make_file(initial, "test.py")
     result = replace_handler(path="test.py", oldString=old, newString=new)
     assert "test.py" in result["output"]
     assert f.read_text(encoding="utf8") == expected
@@ -48,8 +36,8 @@ def test_replace_string_success(sandbox: Path, test_file, initial, old, new, exp
         ("x = 42\ny = 42\n", "42", "appears 2 times"),
     ],
 )
-def test_replace_string_errors(sandbox: Path, test_file, content, old, error_match):
-    test_file(content)
+def test_replace_string_errors(sandbox: Path, make_file, content, old, error_match):
+    make_file(content, "test.py")
     with pytest.raises(ValueError, match=error_match):
         replace_handler(path="test.py", oldString=old, newString="100")
 
@@ -80,8 +68,8 @@ def test_multi_replace_basic(sandbox: Path):
     assert (sandbox / "file2.py").read_text(encoding="utf8") == "y = 20\n"
 
 
-def test_multi_replace_same_file(sandbox: Path, test_file):
-    test_file("def foo():\n    return 1\n\ndef bar():\n    return 2\n")
+def test_multi_replace_same_file(sandbox: Path, make_file):
+    make_file("def foo():\n    return 1\n\ndef bar():\n    return 2\n", "test.py")
 
     result = multi_replace_handler(
         replacements=[

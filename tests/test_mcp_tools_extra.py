@@ -8,17 +8,18 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
-def test_mcp_list_tools_invalid_server(tool_handlers, sandbox: Path):
+@pytest.mark.parametrize(
+    "tool,args",
+    [
+        ("mcp_list_tools", {"server": ""}),
+        ("mcp_list_tools", {"server": "nonexistent"}),
+        ("mcp_call", {"server": "nonexistent", "tool": "test"}),
+    ],
+)
+def test_mcp_tools_invalid_server(tool_handlers, sandbox: Path, tool, args):
     """Test that invalid server names raise ValueError."""
-    # Empty string should fail when trying to find in config
     with pytest.raises(ValueError, match="Unknown server"):
-        tool_handlers["mcp_list_tools"]({"server": ""})
-
-
-def test_mcp_call_invalid_server(tool_handlers, sandbox: Path):
-    """Test that calling with non-existent server raises error."""
-    with pytest.raises(ValueError, match="Unknown server"):
-        tool_handlers["mcp_call"]({"server": "nonexistent", "tool": "test"})
+        tool_handlers[tool](args)
 
 
 @patch("steward.tools.mcp_list_tools.list_tools")

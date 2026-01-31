@@ -7,26 +7,14 @@ from pathlib import Path
 import pytest
 
 
-@pytest.fixture
-def sample_file(sandbox: Path):
-    """Create a sample file with numbered lines."""
-
-    def _create(content: str, name: str = "sample.txt"):
-        f = sandbox / name
-        f.write_text(content, encoding="utf8")
-        return f
-
-    return _create
-
-
 @pytest.mark.parametrize(
     "content,expected",
     [
         ("line one\nline two\nline three\n", ["1. line one", "2. line two"]),
     ],
 )
-def test_view_file(tool_handlers, sandbox: Path, sample_file, content, expected):
-    sample_file(content)
+def test_view_file(tool_handlers, sandbox: Path, make_file, content, expected):
+    make_file(content, "sample.txt")
     result = tool_handlers["view"]({"path": "sample.txt"})
     for exp in expected:
         assert exp in result["output"]
@@ -39,8 +27,8 @@ def test_view_file(tool_handlers, sandbox: Path, sample_file, content, expected)
         ([2, -1], ["2. two", "3. three"], []),
     ],
 )
-def test_view_file_range(tool_handlers, sandbox: Path, sample_file, view_range, expected, not_expected):
-    sample_file("one\ntwo\nthree\nfour\nfive\n")
+def test_view_file_range(tool_handlers, sandbox: Path, make_file, view_range, expected, not_expected):
+    make_file("one\ntwo\nthree\nfour\nfive\n", "sample.txt")
     result = tool_handlers["view"]({"path": "sample.txt", "view_range": view_range})
     for exp in expected:
         assert exp in result["output"]
@@ -56,8 +44,8 @@ def test_view_directory(tool_handlers, sandbox: Path):
     assert "file.txt" in result["output"]
 
 
-def test_view_truncates_large_file(tool_handlers, sandbox: Path, sample_file, monkeypatch):
+def test_view_truncates_large_file(tool_handlers, sandbox: Path, make_file, monkeypatch):
     monkeypatch.setenv("STEWARD_READ_MAX_BYTES", "100")
-    sample_file("x" * 500, "big.txt")
+    make_file("x" * 500, "big.txt")
     result = tool_handlers["view"]({"path": "big.txt"})
     assert "[truncated]" in result["output"]

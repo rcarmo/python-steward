@@ -7,18 +7,6 @@ from pathlib import Path
 import pytest
 
 
-@pytest.fixture
-def test_file(sandbox: Path):
-    """Create a test file with given content."""
-
-    def _create(content: str, name: str = "test.txt"):
-        f = sandbox / name
-        f.write_text(content, encoding="utf8")
-        return f
-
-    return _create
-
-
 @pytest.mark.parametrize(
     "initial,old_str,new_str,expected_output,expected_content",
     [
@@ -34,9 +22,9 @@ def test_file(sandbox: Path):
     ],
 )
 def test_edit_success(
-    tool_handlers, sandbox: Path, test_file, initial, old_str, new_str, expected_output, expected_content
+    tool_handlers, sandbox: Path, make_file, initial, old_str, new_str, expected_output, expected_content
 ):
-    f = test_file(initial)
+    f = make_file(initial, "test.txt")
     result = tool_handlers["edit"]({"path": "test.txt", "old_str": old_str, "new_str": new_str})
     assert expected_output in result["output"]
     assert f.read_text() == expected_content
@@ -49,7 +37,7 @@ def test_edit_success(
         ("foo foo foo", "foo", "appears 3 times"),
     ],
 )
-def test_edit_fails(tool_handlers, sandbox: Path, test_file, content, old_str, error_match):
-    test_file(content)
+def test_edit_fails(tool_handlers, sandbox: Path, make_file, content, old_str, error_match):
+    make_file(content, "test.txt")
     with pytest.raises(ValueError, match=error_match):
         tool_handlers["edit"]({"path": "test.txt", "old_str": old_str, "new_str": "abc"})

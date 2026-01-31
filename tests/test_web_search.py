@@ -7,52 +7,6 @@ import pytest
 from steward.tools.web_search import tool_web_search
 
 
-class MockResponse:
-    """Mock aiohttp response."""
-
-    def __init__(self, text: str):
-        self._text = text
-
-    async def text(self):
-        return self._text
-
-    def raise_for_status(self):
-        pass
-
-
-class MockClientSession:
-    """Mock aiohttp ClientSession."""
-
-    def __init__(self, response_text: str = "", raise_error: Exception | None = None):
-        self._response_text = response_text
-        self._raise_error = raise_error
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *args):
-        pass
-
-    def get(self, *args, **kwargs):
-        return MockContextManager(self._response_text, self._raise_error)
-
-
-class MockContextManager:
-    """Mock context manager for aiohttp get."""
-
-    def __init__(self, response_text: str, raise_error: Exception | None):
-        self._response_text = response_text
-        self._raise_error = raise_error
-
-    async def __aenter__(self):
-        if self._raise_error:
-            raise self._raise_error
-        return MockResponse(self._response_text)
-
-    async def __aexit__(self, *args):
-        pass
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "query,html,expected_in_output",
@@ -72,8 +26,8 @@ class MockContextManager:
         ),
     ],
 )
-async def test_web_search_results(monkeypatch, query, html, expected_in_output):
-    monkeypatch.setattr("steward.tools.web_search.aiohttp.ClientSession", lambda: MockClientSession(html))
+async def test_web_search_results(mock_aiohttp_session, query, html, expected_in_output):
+    mock_aiohttp_session("steward.tools.web_search.aiohttp.ClientSession", response_text=html)
 
     result = await tool_web_search(query)
 
@@ -85,12 +39,12 @@ async def test_web_search_results(monkeypatch, query, html, expected_in_output):
 
 
 @pytest.mark.asyncio
-async def test_web_search_network_error(monkeypatch):
+async def test_web_search_network_error(mock_aiohttp_session):
     import aiohttp
 
-    monkeypatch.setattr(
+    mock_aiohttp_session(
         "steward.tools.web_search.aiohttp.ClientSession",
-        lambda: MockClientSession(raise_error=aiohttp.ClientError("Network error")),
+        raise_error=aiohttp.ClientError("Network error"),
     )
 
     result = await tool_web_search("test")

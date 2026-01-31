@@ -7,17 +7,6 @@ from pathlib import Path
 import pytest
 
 
-@pytest.fixture
-def grep_files(sandbox: Path):
-    """Create test files for grep tests."""
-
-    def _create(files: dict[str, str]):
-        for name, content in files.items():
-            (sandbox / name).write_text(content, encoding="utf8")
-
-    return _create
-
-
 @pytest.mark.parametrize(
     "files,pattern,args,expected,not_expected",
     [
@@ -55,8 +44,8 @@ def grep_files(sandbox: Path):
         ({"test.txt": "nothing here\n"}, "xyz123", {}, ["No matches"], []),
     ],
 )
-def test_grep(tool_handlers, sandbox: Path, grep_files, files, pattern, args, expected, not_expected):
-    grep_files(files)
+def test_grep(tool_handlers, sandbox: Path, make_files, files, pattern, args, expected, not_expected):
+    make_files(files)
     result = tool_handlers["grep"]({"pattern": pattern, **args})
     for exp in expected:
         assert exp in result["output"]

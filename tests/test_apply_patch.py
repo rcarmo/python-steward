@@ -8,11 +8,11 @@ import pytest
 
 
 @pytest.fixture
-def patch_file(sandbox: Path):
+def patch_file(make_file):
     """Create a file and return a patch for it."""
 
     def _create(filename: str, old: str, new: str):
-        (sandbox / filename).write_text(old + "\n", encoding="utf8")
+        make_file(old + "\n", filename)
         return "\n".join([f"--- a/{filename}", f"+++ b/{filename}", "@@ -1 +1 @@", f"-{old}", f"+{new}", ""])
 
     return _create

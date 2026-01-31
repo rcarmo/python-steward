@@ -14,15 +14,9 @@ from steward.tools.write_bash import tool_write_bash as write_handler
 
 
 @pytest.fixture(autouse=True)
-def enable_execute():
+def enable_execute_fixture(enable_execute):
     """Enable execution for tests."""
-    old_val = os.environ.get("STEWARD_ALLOW_EXECUTE")
-    os.environ["STEWARD_ALLOW_EXECUTE"] = "1"
     yield
-    if old_val is None:
-        os.environ.pop("STEWARD_ALLOW_EXECUTE", None)
-    else:
-        os.environ["STEWARD_ALLOW_EXECUTE"] = old_val
 
 
 @pytest.fixture(autouse=True)
