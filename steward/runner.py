@@ -24,6 +24,16 @@ from .types import (
 )
 from .utils import safe_json
 
+# Import ACP event types (optional dependency)
+try:
+    from .acp_events import AcpEventQueue, CancellationToken, is_dangerous_tool
+except ImportError:
+    AcpEventQueue = None  # type: ignore
+    CancellationToken = None  # type: ignore
+
+    def is_dangerous_tool(name: str) -> bool:  # type: ignore
+        return False
+
 
 @dataclass
 class RunnerOptions:
@@ -46,6 +56,10 @@ class RunnerOptions:
     stream_handler: Optional[StreamHandler] = None
     previous_response_id: Optional[str] = None  # For Responses API conversation chaining
     llm_client: Optional[LLMClient] = None  # Reuse client/session across calls
+    # ACP integration
+    event_queue: Optional["AcpEventQueue"] = None  # Event queue for ACP streaming updates
+    cancellation_token: Optional["CancellationToken"] = None  # For cancellation support
+    require_permission: bool = False  # Whether to request permission for dangerous tools
 
 
 @dataclass
@@ -169,7 +183,32 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
     last_response_id = options.previous_response_id
     usage_totals: Optional[UsageStats] = None
 
+    # Create ACP-aware stream handler if event queue is provided
+    acp_stream_handler = options.stream_handler
+    if options.event_queue and not acp_stream_handler:
+        async def _acp_stream_handler(chunk: str, done: bool) -> None:
+            if chunk:
+                await options.event_queue.emit_text_chunk(chunk)
+            if done:
+                await options.event_queue.emit_text_done()
+
+        # Wrap async handler for sync interface expected by LLM client
+        def _sync_acp_stream_handler(chunk: str, done: bool) -> None:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.create_task(_acp_stream_handler(chunk, done))
+            else:
+                loop.run_until_complete(_acp_stream_handler(chunk, done))
+
+        acp_stream_handler = _sync_acp_stream_handler
+
     for step in range(limit):
+        # Check for cancellation at start of each step
+        if options.cancellation_token and options.cancellation_token.is_cancelled:
+            if options.event_queue:
+                await options.event_queue.emit_error("Operation cancelled by user", fatal=True)
+            return RunnerResult(response=None, messages=messages, last_response_id=last_response_id)
+
         try:
             response = await call_model_with_policies(
                 client=client,
@@ -177,13 +216,19 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
                 retry_limit=retry_limit,
                 logger=logger,
                 tools=tool_definitions,
-                stream_handler=options.stream_handler,
+                stream_handler=acp_stream_handler,
                 previous_response_id=last_response_id,
             )
+        except asyncio.CancelledError:
+            if options.event_queue:
+                await options.event_queue.emit_error("Operation cancelled", fatal=True)
+            return RunnerResult(response=None, messages=messages, last_response_id=last_response_id)
         except Exception as err:  # noqa: BLE001
             message = str(err)
             logger.human(HumanEntry(title="model", body=f"step {step} failed: {message}", variant="error"))
             logger.json({"type": "model_error", "step": step, "error": message, "fatal": True})
+            if options.event_queue:
+                await options.event_queue.emit_error(message, fatal=True)
             return RunnerResult(response=None, messages=messages, last_response_id=last_response_id)
 
         # Update response_id for next iteration (Responses API chaining)
@@ -225,6 +270,9 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
             )
             if thought and not options.stream_handler:
                 logger.human(HumanEntry(title="model", body=thought, variant="model"))
+            # Emit thought to event queue for streaming
+            if thought and options.event_queue:
+                await options.event_queue.emit_thought(thought)
             logger.human(
                 HumanEntry(
                     title="model",
@@ -235,7 +283,16 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
             messages.append({"role": "assistant", "content": response.get("content"), "tool_calls": tool_calls})
 
             # Execute tool calls in parallel
-            results = await execute_tools_parallel(tool_calls, tool_handlers, client, logger, step)
+            results = await execute_tools_parallel(
+                tool_calls,
+                tool_handlers,
+                client,
+                logger,
+                step,
+                event_queue=options.event_queue,
+                cancellation_token=options.cancellation_token,
+                require_permission=options.require_permission,
+            )
 
             # Append results to messages
             for call, result in zip(tool_calls, results):
@@ -258,62 +315,161 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
     return RunnerResult(response=None, messages=messages, last_response_id=last_response_id, usage_summary=usage_totals)
 
 
+def _parse_todo_output(output: str) -> List[Dict[str, str]]:
+    """Parse update_todo output into plan entries for ACP.
+
+    Args:
+        output: Output from update_todo tool (markdown checklist)
+
+    Returns:
+        List of plan entry dicts with content, status, priority
+    """
+    entries: List[Dict[str, str]] = []
+    for line in output.split("\n"):
+        line = line.strip()
+        if line.startswith("- [x]") or line.startswith("- [X]"):
+            entries.append({
+                "content": line[5:].strip(),
+                "status": "completed",
+                "priority": "medium",
+            })
+        elif line.startswith("- [ ]"):
+            entries.append({
+                "content": line[5:].strip(),
+                "status": "pending",
+                "priority": "medium",
+            })
+    return entries
+
+
 async def execute_tools_parallel(
     tool_calls: List[ToolCallDescriptor],
     tool_handlers: Dict[str, Callable],
     client: LLMClient,
     logger: Logger,
     step: int,
+    event_queue: Optional["AcpEventQueue"] = None,
+    cancellation_token: Optional["CancellationToken"] = None,
+    require_permission: bool = False,
 ) -> List[ToolResult]:
-    """Execute multiple tool calls in parallel using asyncio."""
+    """Execute multiple tool calls in parallel using asyncio.
+
+    Args:
+        tool_calls: List of tool calls to execute
+        tool_handlers: Map of tool name to handler function
+        client: LLM client for meta-tool synthesis
+        logger: Logger for human and JSON logs
+        step: Current step number
+        event_queue: Optional ACP event queue for streaming updates
+        cancellation_token: Optional token for cancellation support
+        require_permission: Whether to request permission for dangerous tools
+    """
 
     async def run_one(call: ToolCallDescriptor) -> ToolResult:
-        handler = tool_handlers.get(call["name"])
-        todo_variant = "todo" if call["name"] == "manage_todo_list" else "tool"
-        arg_body = summarize_plan_args(call) or f"args={safe_json(call['arguments'])}"
-        logger.human(HumanEntry(title=call["name"], body=arg_body, variant=todo_variant))
+        tool_name = call["name"]
+        tool_call_id = call["id"]
+        arguments = call["arguments"]
+
+        # Check for cancellation before starting
+        if cancellation_token and cancellation_token.is_cancelled:
+            return {"id": tool_name, "output": "Operation cancelled", "error": True}
+
+        handler = tool_handlers.get(tool_name)
+        todo_variant = "todo" if tool_name == "manage_todo_list" else "tool"
+        arg_body = summarize_plan_args(call) or f"args={safe_json(arguments)}"
+        logger.human(HumanEntry(title=tool_name, body=arg_body, variant=todo_variant))
 
         if not handler:
-            return {"id": call["name"], "output": f"Unknown tool {call['name']}", "error": True}
+            if event_queue:
+                await event_queue.emit_tool_failed(tool_call_id, tool_name, f"Unknown tool {tool_name}")
+            return {"id": tool_name, "output": f"Unknown tool {tool_name}", "error": True}
+
+        # Emit tool start event
+        if event_queue:
+            await event_queue.emit_tool_start(tool_call_id, tool_name, arguments)
+
+        # Check permission for dangerous tools
+        if require_permission and event_queue and is_dangerous_tool(tool_name):
+            try:
+                permission = await event_queue.request_permission(
+                    tool_call_id=tool_call_id,
+                    tool_name=tool_name,
+                    arguments=arguments,
+                    reason=f"Tool '{tool_name}' may modify files or execute commands",
+                )
+                if not permission.approved:
+                    await event_queue.emit_tool_failed(tool_call_id, tool_name, "Permission denied by user")
+                    return {"id": tool_name, "output": "Permission denied by user", "error": True}
+            except asyncio.CancelledError:
+                await event_queue.emit_tool_failed(tool_call_id, tool_name, "Operation cancelled")
+                return {"id": tool_name, "output": "Operation cancelled", "error": True}
 
         try:
             # Check if handler is async or sync
             if inspect.iscoroutinefunction(handler):
-                result = await handler(call["arguments"])
+                result = await handler(arguments)
             else:
                 # Run sync handler in thread pool to avoid blocking
-                result = await asyncio.get_event_loop().run_in_executor(None, handler, call["arguments"])
+                result = await asyncio.get_event_loop().run_in_executor(None, handler, arguments)
+
+            # Check for cancellation after execution
+            if cancellation_token and cancellation_token.is_cancelled:
+                if event_queue:
+                    await event_queue.emit_tool_failed(tool_call_id, tool_name, "Operation cancelled")
+                return {"id": tool_name, "output": "Operation cancelled", "error": True}
 
             # Handle meta-tool: if result contains meta_prompt, synthesize via LLM
             if result.get("meta_prompt"):
+                if event_queue:
+                    await event_queue.emit_tool_progress(tool_call_id, tool_name, "in_progress", "Synthesizing response...")
                 synthesized = await synthesize_meta_tool_async(client, result, logger)
-                result = {"id": result.get("id", call["name"]), "output": synthesized}
+                result = {"id": result.get("id", tool_name), "output": synthesized}
 
-            logger.human(HumanEntry(title=call["name"], body=result.get("output", ""), variant=todo_variant))
+            output = result.get("output", "")
+            logger.human(HumanEntry(title=tool_name, body=output, variant=todo_variant))
             logger.json(
                 {
                     "type": "tool_result",
                     "step": step,
-                    "tool": call["name"],
-                    "arguments": call["arguments"],
-                    "output": result.get("output"),
+                    "tool": tool_name,
+                    "arguments": arguments,
+                    "output": output,
                     "error": result.get("error") is True,
                 }
             )
+
+            # Emit completion event
+            if event_queue:
+                if result.get("error"):
+                    await event_queue.emit_tool_failed(tool_call_id, tool_name, output)
+                else:
+                    await event_queue.emit_tool_complete(tool_call_id, tool_name, output)
+                    # Parse update_todo output and emit plan update
+                    if tool_name == "update_todo":
+                        plan_entries = _parse_todo_output(output)
+                        if plan_entries:
+                            await event_queue.emit_plan_update(plan_entries)
+
             return result
+        except asyncio.CancelledError:
+            if event_queue:
+                await event_queue.emit_tool_failed(tool_call_id, tool_name, "Operation cancelled")
+            return {"id": tool_name, "output": "Operation cancelled", "error": True}
         except Exception as err:  # noqa: BLE001
             error_msg = str(err)
-            logger.human(HumanEntry(title=call["name"], body=f"error: {error_msg}", variant="error"))
+            logger.human(HumanEntry(title=tool_name, body=f"error: {error_msg}", variant="error"))
             logger.json(
                 {
                     "type": "tool_error",
                     "step": step,
-                    "tool": call["name"],
-                    "arguments": call["arguments"],
+                    "tool": tool_name,
+                    "arguments": arguments,
                     "error": error_msg,
                 }
             )
-            return {"id": call["name"], "output": f"error: {error_msg}", "error": True}
+            if event_queue:
+                await event_queue.emit_tool_failed(tool_call_id, tool_name, error_msg)
+            return {"id": tool_name, "output": f"error: {error_msg}", "error": True}
 
     # Run all tool calls concurrently
     return await asyncio.gather(*[run_one(call) for call in tool_calls])
