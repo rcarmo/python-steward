@@ -6,8 +6,6 @@ import asyncio
 import copy
 import json
 from dataclasses import asdict, dataclass, field
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as pkg_version
 from typing import Any, Dict, List, Optional
 
 from acp import (
@@ -31,9 +29,12 @@ from acp.schema import (
     AgentCapabilities,
     AgentPlanUpdate,
     AgentThoughtChunk,
+    AvailableCommand,
+    AvailableCommandsUpdate,
     AudioContentBlock,
     ClientCapabilities,
     EmbeddedResourceContentBlock,
+    SessionInfoUpdate,
     FileSystemCapability,
     ForkSessionResponse,
     HttpMcpServer,
@@ -61,6 +62,8 @@ from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, PLAN_MODE_PREFIX, detect_p
 from .logger import HumanEntry, Logger
 from .runner import RunnerOptions, run_steward_async
 from .session import DEFAULT_SESSION_DIR, generate_session_id
+from .tools import discover_tools
+from .utils import get_version
 
 # Supported modes for Steward
 STEWARD_MODES = [
@@ -177,7 +180,7 @@ class StewardAcpAgent(Agent):
                     resume=SessionResumeCapabilities(),
                 ),
             ),
-            agent_info=Implementation(name="steward", title="Steward", version=_get_version()),
+            agent_info=Implementation(name="steward", title="Steward", version=get_version()),
         )
 
     async def authenticate(self, method_id: str, **kwargs: Any) -> AuthenticateResponse | None:
@@ -197,6 +200,7 @@ class StewardAcpAgent(Agent):
         self._sessions[session_id] = state
         if self._persist_sessions:
             self._save_session(session_id, state)
+        await self._send_available_commands(session_id)
         return NewSessionResponse(
             session_id=session_id,
             modes=_build_mode_state(DEFAULT_MODE_ID),
@@ -227,6 +231,7 @@ class StewardAcpAgent(Agent):
             # Update MCP servers if session already exists
             state = self._sessions[session_id]
             state.mcp_servers = _parse_mcp_servers(mcp_servers)
+        await self._send_available_commands(session_id)
         return LoadSessionResponse()
 
     async def list_sessions(
@@ -533,6 +538,8 @@ class StewardAcpAgent(Agent):
                     update=update_agent_message(text_block(response_text)),
                 )
 
+            await self._send_usage_summary(session_id, result.usage_summary)
+
             stop_reason = "end_turn"
         except asyncio.CancelledError:
             stop_reason = "cancelled"
@@ -706,6 +713,47 @@ class StewardAcpAgent(Agent):
                     ),
                 )
 
+    async def _send_available_commands(self, session_id: str) -> None:
+        """Send available REPL-like commands to ACP clients."""
+        if not hasattr(self, "_conn"):
+            return
+        commands = [
+            AvailableCommand(name="stats", description="Show token usage for the session"),
+            AvailableCommand(name="history", description="Show recent REPL history"),
+            AvailableCommand(name="new", description="Start a new conversation"),
+            AvailableCommand(name="clear", description="Clear the display"),
+        ]
+        await self._conn.session_update(
+            session_id=session_id,
+            update=AvailableCommandsUpdate(
+                sessionUpdate="available_commands_update",
+                availableCommands=commands,
+            ),
+        )
+
+    async def _send_usage_summary(self, session_id: str, usage: Optional[dict]) -> None:
+        """Send usage summary as a session info update."""
+        if not hasattr(self, "_conn"):
+            return
+        if not usage:
+            return
+        prompt = usage.get("prompt_tokens", 0)
+        completion = usage.get("completion_tokens", 0)
+        total = usage.get("total_tokens", 0)
+        cached = usage.get("cached_tokens", 0)
+        cache_pct = int(100 * cached / prompt) if cached and prompt else 0
+        title = f"tokens: prompt={prompt}, completion={completion}, total={total}"
+        if cached:
+            title += f", cached={cached} ({cache_pct}%)"
+        await self._conn.session_update(
+            session_id=session_id,
+            update=SessionInfoUpdate(
+                sessionUpdate="session_info_update",
+                title=title,
+                updatedAt=_utc_now_iso(),
+            ),
+        )
+
     def resolve_permission(self, session_id: str, request_id: str, approved: bool, always_allow: bool = False) -> bool:
         """Resolve a pending permission request from the client.
 
@@ -812,7 +860,4 @@ def main() -> None:
 
 
 def _get_version() -> str:
-    try:
-        return pkg_version("steward")
-    except PackageNotFoundError:
-        return "0.0.0"
+    return get_version()

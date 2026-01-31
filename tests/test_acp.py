@@ -476,9 +476,10 @@ async def test_acp_thought_streaming() -> None:
     # Send to client
     await agent._send_event_to_client(session_id, event)
 
-    # Verify client received thought chunk
-    assert len(client.updates) == 1
-    update = client.updates[0]["update"]
+    # Verify client received thought chunk (ignore available_commands update)
+    updates = [u["update"] for u in client.updates if u["update"].sessionUpdate == "agent_thought_chunk"]
+    assert len(updates) == 1
+    update = updates[0]
     assert update.sessionUpdate == "agent_thought_chunk"
     assert update.content.text == "Analyzing the codebase..."
 
@@ -513,9 +514,10 @@ async def test_acp_plan_update_streaming() -> None:
     # Send to client
     await agent._send_event_to_client(session_id, event)
 
-    # Verify client received plan update
-    assert len(client.updates) == 1
-    update = client.updates[0]["update"]
+    # Verify client received plan update (ignore available_commands update)
+    updates = [u["update"] for u in client.updates if u["update"].sessionUpdate == "plan"]
+    assert len(updates) == 1
+    update = updates[0]
     assert update.sessionUpdate == "plan"
     assert len(update.entries) == 3
     assert update.entries[0].content == "Implement feature A"

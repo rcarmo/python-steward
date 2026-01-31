@@ -60,6 +60,7 @@ class RunnerOptions:
     event_queue: Optional["AcpEventQueue"] = None  # Event queue for ACP streaming updates
     cancellation_token: Optional["CancellationToken"] = None  # For cancellation support
     require_permission: bool = False  # Whether to request permission for dangerous tools
+    permission_handler: Optional[Callable[[ToolCallDescriptor], bool]] = None  # For non-ACP permission prompts
 
 
 @dataclass
@@ -290,6 +291,7 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
                 event_queue=options.event_queue,
                 cancellation_token=options.cancellation_token,
                 require_permission=options.require_permission,
+                permission_handler=options.permission_handler,
             )
 
             # Append results to messages
@@ -349,6 +351,7 @@ async def execute_tools_parallel(
     event_queue: Optional["AcpEventQueue"] = None,
     cancellation_token: Optional["CancellationToken"] = None,
     require_permission: bool = False,
+    permission_handler: Optional[Callable[[ToolCallDescriptor], bool]] = None,
 ) -> List[ToolResult]:
     """Execute multiple tool calls in parallel using asyncio.
 
@@ -373,7 +376,12 @@ async def execute_tools_parallel(
             return {"id": tool_name, "output": "Operation cancelled", "error": True}
 
         handler = tool_handlers.get(tool_name)
-        todo_variant = "todo" if tool_name == "manage_todo_list" else "tool"
+        if tool_name == "manage_todo_list":
+            todo_variant = "todo"
+        elif tool_name == "report_intent":
+            todo_variant = "intent"
+        else:
+            todo_variant = "tool"
         arg_body = summarize_plan_args(call) or f"args={safe_json(arguments)}"
         logger.human(HumanEntry(title=tool_name, body=arg_body, variant=todo_variant))
 
@@ -387,20 +395,25 @@ async def execute_tools_parallel(
             await event_queue.emit_tool_start(tool_call_id, tool_name, arguments)
 
         # Check permission for dangerous tools
-        if require_permission and event_queue and is_dangerous_tool(tool_name):
-            try:
-                permission = await event_queue.request_permission(
-                    tool_call_id=tool_call_id,
-                    tool_name=tool_name,
-                    arguments=arguments,
-                    reason=f"Tool '{tool_name}' may modify files or execute commands",
-                )
-                if not permission.approved:
-                    await event_queue.emit_tool_failed(tool_call_id, tool_name, "Permission denied by user")
+        if require_permission and is_dangerous_tool(tool_name):
+            if not event_queue and permission_handler:
+                approved = permission_handler(call)
+                if not approved:
                     return {"id": tool_name, "output": "Permission denied by user", "error": True}
-            except asyncio.CancelledError:
-                await event_queue.emit_tool_failed(tool_call_id, tool_name, "Operation cancelled")
-                return {"id": tool_name, "output": "Operation cancelled", "error": True}
+            if event_queue:
+                try:
+                    permission = await event_queue.request_permission(
+                        tool_call_id=tool_call_id,
+                        tool_name=tool_name,
+                        arguments=arguments,
+                        reason=f"Tool '{tool_name}' may modify files or execute commands",
+                    )
+                    if not permission.approved:
+                        await event_queue.emit_tool_failed(tool_call_id, tool_name, "Permission denied by user")
+                        return {"id": tool_name, "output": "Permission denied by user", "error": True}
+                except asyncio.CancelledError:
+                    await event_queue.emit_tool_failed(tool_call_id, tool_name, "Operation cancelled")
+                    return {"id": tool_name, "output": "Operation cancelled", "error": True}
 
         try:
             # Check if handler is async or sync

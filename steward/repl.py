@@ -13,6 +13,8 @@ from rich.live import Live
 from rich.markdown import Markdown
 
 from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, detect_provider, ensure_dotenv_loaded
+from .acp_events import DANGEROUS_TOOLS
+from .tools.ask_user import tool_ask_user
 from .runner import RunnerOptions, RunnerResult, run_steward_with_history
 from .session import generate_session_id
 from .types import Message
@@ -216,6 +218,14 @@ def run_repl(
             if done and stream_live:
                 stream_live.stop()
 
+        def permission_handler(call):
+            tool_name = call.get("name", "")
+            if tool_name not in DANGEROUS_TOOLS:
+                return True
+            question = f"Allow tool '{tool_name}' to run?"
+            result = tool_ask_user(question=question, choices=["Allow", "Deny"], allow_freeform=False)
+            return "\"response\": \"Allow\"" in result["output"]
+
         # Run steward with the prompt
         options = RunnerOptions(
             prompt=prompt_text,
@@ -234,6 +244,8 @@ def run_repl(
             custom_instructions=custom_instructions,
             conversation_history=conversation_history,
             stream_handler=stream_handler,
+            require_permission=True,
+            permission_handler=permission_handler,
         )
 
         try:
