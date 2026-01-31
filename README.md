@@ -109,7 +109,7 @@ Or with the installed entry point:
 
 ## ACP Server Mode
 
-Steward can run as an ACP (Agent Client Protocol) agent over stdio, suitable for ACP clients like Zed:
+Steward can run as an ACP (Agent Control Protocol) agent over stdio, providing a full-featured agent experience for ACP clients like Zed:
 
 ```bash
 # Run as ACP server
@@ -132,6 +132,43 @@ Example Zed config:
   }
 }
 ```
+
+### ACP Features
+
+Steward's ACP implementation supports the full protocol:
+
+| Feature | Description |
+|---------|-------------|
+| **Streaming** | Real-time text chunks, tool events, thoughts, and plan updates |
+| **Tool Visibility** | `ToolCallStart`, `ToolCallProgress`, `ToolCallComplete`, `ToolCallFailed` events |
+| **Session Management** | Persistent sessions with `list_sessions`, `fork_session`, `resume_session` |
+| **Modes** | `default`, `plan`, `code-review` modes with automatic prompt prefixing |
+| **MCP Passthrough** | Pass MCP server configs from client to agent |
+| **Client Delegation** | Optional file read/write delegation to client |
+| **Cancellation** | Graceful cancellation of in-progress operations |
+| **Thought Streaming** | `AgentThoughtChunk` for model reasoning visibility |
+| **Plan Updates** | `AgentPlanUpdate` when TODO lists change |
+
+### Session Persistence
+
+ACP sessions are automatically persisted to `~/.steward/sessions/<session_id>/acp_state.json`, including:
+- Conversation history
+- Model and mode settings
+- Session configuration
+- MCP server configs
+
+### Configuration Parity
+
+ACP sessions support the same configuration options as the CLI:
+- `system_prompt` - Custom system prompt
+- `custom_instructions` - Additional coding instructions
+- `max_steps` - Maximum tool execution steps
+- `timeout_ms` - Per-call timeout
+- `retries` - LLM retry count
+
+### Client File Delegation
+
+If your ACP client supports file system capabilities (`readTextFile`, `writeTextFile`), Steward can delegate file operations to the client instead of accessing the filesystem directly. This is useful for sandboxed environments.
 
 ## MCP Client Mode
 
@@ -272,6 +309,6 @@ Custom instructions can be injected via `--instructions <file>`.
 - [x] Add interactive shell I/O tools
 - [x] Add session management and plan mode
 - [x] Add REPL
-- [ ] Add streaming support
+- [x] Add streaming support (via ACP)
 - [ ] Add sub-agent orchestration
 - [ ] Additional provider shims as needed
