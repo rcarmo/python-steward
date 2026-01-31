@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
+from .logger import HumanEntry, Logger
 from .tools.load_skill import SkillMetadata, parse_skill
 
 # Directories to skip during skill discovery
@@ -18,6 +19,7 @@ class SkillRegistry:
     def __init__(self) -> None:
         self._skills: Dict[str, List[SkillMetadata]] = {}
         self._discovered = False
+        self._logger = Logger(provider="skills", model="n/a", enable_file_logs=False)
 
     def discover(self, root: Optional[Path] = None, max_depth: int = 5) -> int:
         """Discover all SKILL.md files in the workspace. Returns count of skills found."""
@@ -39,12 +41,16 @@ class SkillRegistry:
                             rel = entry.relative_to(root)
                             skill = parse_skill(content, str(rel))
                             self._skills.setdefault(skill.name, []).append(skill)
-                        except (OSError, IOError):
-                            pass
+                        except (OSError, IOError) as err:
+                            self._logger.human(
+                                HumanEntry(title="skills", body=f"Failed to read {entry}: {err}", variant="warn")
+                            )
                     elif entry.is_dir():
                         search(entry, depth + 1)
-            except PermissionError:
-                pass
+            except PermissionError as err:
+                self._logger.human(
+                    HumanEntry(title="skills", body=f"Permission denied reading {directory}: {err}", variant="warn")
+                )
 
         search(root)
         self._discovered = True

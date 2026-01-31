@@ -40,6 +40,8 @@ Always use the Makefile for development tasks. Never run raw `pytest` or `ruff` 
 - Do not use heredocs or random shell commands
 - Prefer `make` and ecosystem tools (pip) over manual operations
 - Debug issues systematically - search for and review documentation as needed
+- Before adding new functionality, check for existing helpers or duplicated logic and refactor for reuse.
+- Avoid silent exception handling; log warnings/errors using the project logger instead of swallowing exceptions.
 
 ## Coding Style Guidelines
 

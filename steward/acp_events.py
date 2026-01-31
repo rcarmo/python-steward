@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Awaitable, Callable, Dict, List, Literal, Optional
 
+from .logger import HumanEntry, Logger
+
 
 class AcpEventType(str, Enum):
     """Types of events that can be emitted to ACP clients."""
@@ -486,6 +488,7 @@ class AcpEventDispatcher:
         self._send_update = send_update
         self._queues: Dict[str, AcpEventQueue] = {}
         self._tasks: Dict[str, asyncio.Task] = {}
+        self._logger = Logger(provider="acp", model="unknown", enable_file_logs=False)
 
     def create_queue(self, session_id: str) -> AcpEventQueue:
         """Create a new event queue for a session."""
@@ -514,9 +517,8 @@ class AcpEventDispatcher:
                     continue
                 except asyncio.CancelledError:
                     break
-                except Exception:
-                    # Log but don't crash the dispatcher
-                    pass
+                except Exception as err:
+                    self._logger.human(HumanEntry(title="acp", body=f"event dispatch error: {err}", variant="warn"))
 
         task = asyncio.create_task(dispatch_loop())
         self._tasks[session_id] = task

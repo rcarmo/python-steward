@@ -9,8 +9,7 @@ from typing import List, Optional
 
 from .config import DEFAULT_MEMORY_CONTEXT_ITEMS
 from .tools.store_memory import load_memories, memory_file
-
-VERSION = "0.11.1"
+from .utils import get_version
 
 # AGENTS.md configuration file names (checked in order)
 AGENTS_FILES = ["AGENTS.md", "agents.md", ".agents.md"]
@@ -76,7 +75,10 @@ def load_agents_instructions() -> Optional[str]:
 
 def get_environment_context() -> str:
     """Generate environment context section."""
-    cwd = getcwd()
+    return _format_environment_context(getcwd())
+
+
+def _format_environment_context(cwd: str) -> str:
     git_root = _find_git_root(cwd)
 
     lines = [
@@ -199,7 +201,7 @@ def build_system_prompt(
 def _header_section(tools_list: str) -> str:
     return f"""You are Steward, a CLI agent for software engineering tasks.
 
-<version_information>Version: {VERSION}</version_information>
+<version_information>Version: {get_version()}</version_information>
 
 Available tools: {tools_list}"""
 

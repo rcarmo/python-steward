@@ -4,13 +4,8 @@ import json
 import os
 from pathlib import Path
 
-from steward.system_prompt import (
-    VERSION,
-    build_system_prompt,
-    default_system_prompt,
-    get_environment_context,
-    load_agents_instructions,
-)
+from steward.system_prompt import build_system_prompt, default_system_prompt, get_environment_context, load_agents_instructions
+from steward.utils import get_version
 
 
 def test_build_system_prompt_contains_tools():
@@ -24,7 +19,7 @@ def test_build_system_prompt_contains_tools():
 def test_build_system_prompt_contains_version():
     """Test that system prompt includes version."""
     prompt = build_system_prompt(["view"])
-    assert VERSION in prompt
+    assert get_version() in prompt
 
 
 def test_build_system_prompt_contains_sections():

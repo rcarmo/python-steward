@@ -124,7 +124,8 @@ def tool_grep(
 
         try:
             data = file_path.read_bytes()
-        except OSError:
+        except OSError as err:
+            files_with_matches.append(f"[error reading {rel}: {err}]")
             return
 
         if len(data) > max_file_bytes:

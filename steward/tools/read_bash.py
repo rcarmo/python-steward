@@ -51,7 +51,12 @@ def tool_read_bash(sessionId: str, delay: Optional[float] = None) -> ToolResult:
             data = proc.stdout.read1(8192)
             if data:
                 output_parts.append(data if isinstance(data, str) else data.decode("utf8", errors="ignore"))
-        except Exception:
-            pass
+        except Exception as err:
+            return {
+                "id": "read_bash",
+                "output": f"[error reading output: {err}]",
+                "error": True,
+                "next_tool": ["stop_bash"],
+            }
 
     return {"id": "read_bash", "output": "\n".join(output_parts), "next_tool": ["write_bash", "read_bash"]}

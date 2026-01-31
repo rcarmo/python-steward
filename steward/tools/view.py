@@ -20,7 +20,8 @@ def list_directory(dir_path: Path, max_depth: int = 2) -> List[str]:
             return
         try:
             items = sorted(current.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
-        except PermissionError:
+        except PermissionError as err:
+            entries.append(f"[permission denied: {rel_path(current)}: {err}]")
             return
         for item in items:
             if item.name.startswith(".") and item.name != ".":

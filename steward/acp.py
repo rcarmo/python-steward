@@ -57,7 +57,8 @@ from acp.schema import (
 )
 
 from .acp_events import AcpEvent, AcpEventQueue, AcpEventType, CancellationToken, PermissionResponse
-from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, detect_provider
+from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, PLAN_MODE_PREFIX, detect_provider
+from .logger import HumanEntry, Logger
 from .runner import RunnerOptions, run_steward_async
 from .session import DEFAULT_SESSION_DIR, generate_session_id
 
@@ -136,12 +137,14 @@ class StewardAcpAgent(Agent):
 
     _conn: Client
     _client_fs: ClientFileSystemCapabilities
+    _logger: Logger
 
     def __init__(self, persist_sessions: bool = True) -> None:
         self._sessions: Dict[str, SessionState] = {}
         self._persist_sessions = persist_sessions
         self._session_dir = DEFAULT_SESSION_DIR
         self._client_fs = ClientFileSystemCapabilities()
+        self._logger = Logger(provider="acp", model="unknown", enable_file_logs=False)
 
     def on_connect(self, conn: Client) -> None:
         self._conn = conn
@@ -477,7 +480,7 @@ class StewardAcpAgent(Agent):
 
         # Apply plan mode prefix if in plan mode
         if state.mode_id == "plan":
-            prompt_text = f"[[PLAN]] {prompt_text}"
+            prompt_text = f"{PLAN_MODE_PREFIX} {prompt_text}"
 
         # Create event queue and cancellation token for this prompt
         event_queue = AcpEventQueue(session_id)
@@ -577,8 +580,8 @@ class StewardAcpAgent(Agent):
                 line=line,
             )
             return response.content
-        except Exception:
-            # Fall back to local read on any error
+        except Exception as err:
+            self._logger.human(HumanEntry(title="acp", body=f"delegated read failed: {err}", variant="warn"))
             return None
 
     async def write_file_delegated(self, session_id: str, path: str, content: str) -> bool:
@@ -595,8 +598,8 @@ class StewardAcpAgent(Agent):
                 content=content,
             )
             return True
-        except Exception:
-            # Fall back to local write on any error
+        except Exception as err:
+            self._logger.human(HumanEntry(title="acp", body=f"delegated write failed: {err}", variant="warn"))
             return False
 
     async def _dispatch_events(self, session_id: str, event_queue: AcpEventQueue) -> None:
@@ -609,9 +612,8 @@ class StewardAcpAgent(Agent):
                 continue
             except asyncio.CancelledError:
                 break
-            except Exception:
-                # Log but don't crash the dispatcher
-                pass
+            except Exception as err:
+                self._logger.human(HumanEntry(title="acp", body=f"event dispatch error: {err}", variant="warn"))
 
     async def _send_event_to_client(self, session_id: str, event: AcpEvent) -> None:
         """Convert AcpEvent to ACP protocol update and send to client."""

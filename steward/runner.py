@@ -7,7 +7,7 @@ import inspect
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional
 
-from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, detect_provider, get_system_role
+from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, PLAN_MODE_PREFIX, detect_provider, get_system_role
 from .llm import build_client
 from .logger import HumanEntry, Logger
 from .system_prompt import build_system_prompt
@@ -71,8 +71,6 @@ class RunnerResult:
     last_response_id: Optional[str] = None  # For Responses API conversation chaining
     usage_summary: Optional[UsageStats] = None  # Aggregated token/cache stats for session summary
 
-
-PLAN_MODE_PREFIX = "[[PLAN]]"
 
 
 def run_steward(options: RunnerOptions) -> Optional[str]:

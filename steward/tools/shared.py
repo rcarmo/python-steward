@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Callable
 
 from ..config import DEFAULT_TOOL_OUTPUT_LIMIT, env_int, get_sandbox_root
+from ..utils import truncate_output
 
 TodoStatus = str
 
@@ -111,14 +112,6 @@ def is_hidden(rel: str) -> bool:
 
 def is_binary_buffer(data: bytes) -> bool:
     return b"\x00" in data
-
-
-def truncate_output(body: str, max_bytes: int) -> str:
-    encoded = body.encode("utf8")
-    if len(encoded) <= max_bytes:
-        return body
-    truncated = encoded[:max_bytes]
-    return f"{truncated.decode('utf8', errors='ignore')}\n[truncated]"
 
 
 def build_matcher(

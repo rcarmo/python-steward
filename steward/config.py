@@ -12,6 +12,7 @@ DEFAULT_MODEL = "gpt-5-mini"
 DEFAULT_PROVIDER = "echo"
 DEFAULT_MAX_STEPS = 32
 DEFAULT_REQUEST_TIMEOUT_MS: Optional[int] = None
+PLAN_MODE_PREFIX = "[[PLAN]]"
 
 # Tool output limits (Codex-style truncation for context efficiency)
 DEFAULT_TOOL_OUTPUT_LIMIT = 8000  # chars - prevents context blowup

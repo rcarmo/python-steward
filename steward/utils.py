@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as pkg_version
 from typing import Any
 
 
@@ -19,3 +21,11 @@ def truncate_output(body: str, max_bytes: int) -> str:
         return body
     truncated = encoded[:max_bytes]
     return f"{truncated.decode('utf8', errors='ignore')}\n[truncated]"
+
+
+def get_version() -> str:
+    """Get package version with fallback."""
+    try:
+        return pkg_version("steward")
+    except PackageNotFoundError:
+        return "0.0.0"
