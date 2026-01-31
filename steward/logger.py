@@ -52,14 +52,17 @@ class Logger:
         self.console = Console(theme=_theme(), highlight=False) if pretty else None
         self._last_transient_lines = 0  # Track transient output for clearing
 
-    def start_spinner(self):
+    def start_spinner(self, message: str = "waiting"):
         if not self.pretty or not self.enable_human_logs:
             return lambda: None
-        status = self.console.status("waiting", spinner="dots") if self.console else None
+        status = self.console.status(message, spinner="dots") if self.console else None
         if status:
             status.start()
             return status.stop
         return lambda: None
+
+    def supports_spinner(self) -> bool:
+        return bool(self.pretty and self.enable_human_logs and self.console)
 
     def _clear_transient(self) -> None:
         """Clear previous transient output."""

@@ -52,6 +52,9 @@ def test_logger_spinner():
     assert callable(stop)
     stop()  # Should not raise
 
+    # supports_spinner should be False with human logs disabled
+    assert logger.supports_spinner() is False
+
 
 def test_human_entry_variants():
     from steward.logger import HumanEntry

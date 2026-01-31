@@ -415,6 +415,9 @@ async def execute_tools_parallel(
                     await event_queue.emit_tool_failed(tool_call_id, tool_name, "Operation cancelled")
                     return {"id": tool_name, "output": "Operation cancelled", "error": True}
 
+        stop_spinner = None
+        if logger.supports_spinner():
+            stop_spinner = logger.start_spinner(f"Running {tool_name}…")
         try:
             # Check if handler is async or sync
             if inspect.iscoroutinefunction(handler):
@@ -481,6 +484,9 @@ async def execute_tools_parallel(
             if event_queue:
                 await event_queue.emit_tool_failed(tool_call_id, tool_name, error_msg)
             return {"id": tool_name, "output": f"error: {error_msg}", "error": True}
+        finally:
+            if stop_spinner:
+                stop_spinner()
 
     # Run all tool calls concurrently
     return await asyncio.gather(*[run_one(call) for call in tool_calls])
