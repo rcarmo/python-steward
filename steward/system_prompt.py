@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from os import getcwd
 from pathlib import Path
 from typing import List, Optional
@@ -125,6 +126,11 @@ def _memory_context_section() -> str:
     return "\n".join(lines)
 
 
+def _local_datetime_section() -> str:
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return f"Local date/time: {timestamp}"
+
+
 def build_system_prompt(
     tool_names: List[str],
     custom_instructions: Optional[str] = None,
@@ -150,6 +156,7 @@ def build_system_prompt(
     13. Plan mode (if active)
     14. Tips
     15. Memory context (variable, last for caching)
+    16. Local date/time (dynamic, final line)
     """
     tools_list = ", ".join(sorted(tool_names))  # Sort for cache stability
     env_context = get_environment_context()
@@ -184,6 +191,7 @@ def build_system_prompt(
 
     sections.append(_tips_section())
     sections.append(_memory_context_section())
+    sections.append(_local_datetime_section())
 
     return "\n\n".join(sections)
 

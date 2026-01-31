@@ -40,6 +40,11 @@ def test_build_system_prompt_contains_sections():
     assert "<task_completion>" in prompt
     assert "<environment_context>" in prompt
     assert "<tips>" in prompt
+    assert "Local date/time:" in prompt
+
+    # Ensure datetime is at the end
+    last_line = prompt.strip().splitlines()[-1]
+    assert last_line.startswith("Local date/time:")
 
 
 def test_build_system_prompt_parallel_tool_calling():
