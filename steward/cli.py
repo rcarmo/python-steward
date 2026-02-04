@@ -7,9 +7,11 @@ from os import chdir
 from pathlib import Path
 from typing import Optional, Union
 
+from .acp_events import DANGEROUS_TOOLS
 from .config import ensure_dotenv_loaded, set_sandbox_root
 from .runner import RunnerOptions, run_steward
 from .session import generate_session_id
+from .tools.ask_user import tool_ask_user
 
 
 def parse_args() -> Union[RunnerOptions, dict]:
@@ -70,6 +72,14 @@ def parse_args() -> Union[RunnerOptions, dict]:
     if parsed.session:
         session_id = parsed.session if parsed.session != "auto" else generate_session_id()
 
+    def permission_handler(call: dict) -> bool:
+        tool_name = call.get("name", "")
+        if tool_name not in DANGEROUS_TOOLS:
+            return True
+        question = f"Allow tool '{tool_name}' to run?"
+        result = tool_ask_user(question=question, choices=["Allow", "Deny"], allow_freeform=False)
+        return '"response": "Allow"' in result["output"]
+
     # REPL mode (default when no prompt provided)
     prompt_text = " ".join(parsed.prompt).strip()
     if parsed.repl or not prompt_text:
@@ -103,6 +113,8 @@ def parse_args() -> Union[RunnerOptions, dict]:
         pretty_logs=parsed.pretty,
         session_id=session_id,
         custom_instructions=custom_instructions,
+        require_permission=True,
+        permission_handler=permission_handler,
     )
 
 

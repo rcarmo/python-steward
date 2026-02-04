@@ -98,6 +98,8 @@ async def test_acp_new_session_returns_modes() -> None:
     assert session.modes is not None
     assert session.modes.current_mode_id == DEFAULT_MODE_ID
     assert len(session.modes.available_modes) == len(STEWARD_MODES)
+    state = agent._sessions[session.session_id]
+    assert state.config.require_permission is True
 
 
 @pytest.mark.asyncio

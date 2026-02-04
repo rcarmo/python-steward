@@ -35,6 +35,7 @@ def test_cli_with_prompt(mock_run, sandbox: Path):
 
     # Verify run_steward was called
     assert mock_run.called or True  # May not be called due to arg parsing
+    assert mock_run.call_args[0][0].require_permission is True
 
 
 @patch("steward.cli.run_steward")
@@ -49,6 +50,7 @@ def test_cli_with_provider(mock_run, sandbox: Path):
                 main()
             except SystemExit:
                 pass
+    assert mock_run.call_args[0][0].require_permission is True
 
 
 @patch("steward.cli.run_steward")
@@ -63,3 +65,4 @@ def test_cli_quiet_mode(mock_run, sandbox: Path):
                 main()
             except SystemExit:
                 pass
+    assert mock_run.call_args[0][0].require_permission is True

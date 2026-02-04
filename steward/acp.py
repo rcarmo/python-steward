@@ -202,6 +202,7 @@ class StewardAcpAgent(Agent):
             cwd=cwd,
             updated_at=_utc_now_iso(),
             mcp_servers=mcp_specs,
+            config=SessionConfig(require_permission=True),
         )
         self._sessions[session_id] = state
         if self._persist_sessions:
