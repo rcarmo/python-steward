@@ -31,6 +31,11 @@ class SkillRegistry:
                 return
             try:
                 for entry in directory.iterdir():
+                    if entry.is_dir() and entry.name == ".github":
+                        skills_dir = entry / "skills"
+                        if skills_dir.is_dir():
+                            search(skills_dir, depth + 1)
+                        continue
                     if entry.name in IGNORED_DIRS:
                         continue
                     if entry.name.startswith(".") and entry.name != ".":

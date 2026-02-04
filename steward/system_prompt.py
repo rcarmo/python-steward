@@ -13,6 +13,7 @@ from .utils import get_version
 
 # AGENTS.md configuration file names (checked in order)
 AGENTS_FILES = ["AGENTS.md", "agents.md", ".agents.md"]
+COPILOT_INSTRUCTIONS_FILE = ".github/copilot-instructions.md"
 
 
 def load_agents_instructions() -> Optional[str]:
@@ -44,6 +45,14 @@ def load_agents_instructions() -> Optional[str]:
     git_root = _find_git_root(str(cwd))
     if git_root:
         git_root_path = Path(git_root)
+        copilot_path = git_root_path / COPILOT_INSTRUCTIONS_FILE
+        if copilot_path.exists():
+            try:
+                instructions.append(
+                    f"# Copilot instructions ({COPILOT_INSTRUCTIONS_FILE})\n{copilot_path.read_text(encoding='utf8').strip()}"
+                )
+            except OSError:
+                pass
         for name in AGENTS_FILES:
             repo_path = git_root_path / name
             if repo_path.exists() and repo_path != cwd / name:

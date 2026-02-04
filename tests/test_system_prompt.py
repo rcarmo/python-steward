@@ -227,3 +227,16 @@ def test_load_agents_instructions_local(sandbox: Path):
     assert result is not None
     assert "Local Instructions" in result
     assert "pytest" in result
+
+
+def test_load_agents_instructions_copilot_instructions(sandbox: Path):
+    """Test loading repo-level copilot-instructions."""
+    (sandbox / ".git").mkdir()
+    github_dir = sandbox / ".github"
+    github_dir.mkdir()
+    copilot_file = github_dir / "copilot-instructions.md"
+    copilot_file.write_text("# Copilot Instructions\nUse make check.", encoding="utf8")
+
+    result = load_agents_instructions()
+    assert result is not None
+    assert "Copilot Instructions" in result

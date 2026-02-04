@@ -21,8 +21,11 @@ def test_discover_skills_recursive(tool_handlers, sandbox: Path):
     subdir.mkdir(parents=True)
     (subdir / "SKILL.md").write_text("# Nested Skill", encoding="utf8")
     (sandbox / "SKILL.md").write_text("# Root Skill", encoding="utf8")
+    skills_dir = sandbox / ".github" / "skills"
+    skills_dir.mkdir(parents=True)
+    (skills_dir / "SKILL.md").write_text("# Github Skill", encoding="utf8")
     result = tool_handlers["discover_skills"]({})
-    assert "Found 2 skill" in result["output"]
+    assert "Found 3 skill" in result["output"]
 
 
 def test_discover_skills_none_found(tool_handlers, sandbox: Path):
