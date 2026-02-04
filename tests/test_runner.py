@@ -218,6 +218,33 @@ def test_execute_tools_parallel_with_event_queue():
     assert AcpEventType.TOOL_COMPLETE in event_types
 
 
+def test_build_skill_context_includes_frontmatter_and_admonition(tmp_path: Path):
+    from steward.runner import _build_skill_context
+    from steward.skills import SkillRegistry
+
+    skill_content = """---
+name: data-munging
+description: Normalize messy datasets
+triggers:
+  - csv
+  - cleanup
+---
+
+# Data Munging
+
+Detailed steps here.
+"""
+    (tmp_path / "SKILL.md").write_text(skill_content, encoding="utf8")
+    registry = SkillRegistry()
+    registry.discover(tmp_path)
+
+    context = _build_skill_context(registry, "clean csv files")
+    assert context is not None
+    assert "Frontmatter:" in context
+    assert "triggers" in context
+    assert "Use load_skill to read the full SKILL.md" in context
+
+
 def test_execute_tools_parallel_emits_failed_event_on_error():
     """Test that execute_tools_parallel emits TOOL_FAILED on handler error."""
     from steward.acp_events import AcpEventQueue, AcpEventType

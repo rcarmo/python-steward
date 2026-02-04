@@ -73,7 +73,6 @@ class RunnerResult:
     usage_summary: Optional[UsageStats] = None  # Aggregated token/cache stats for session summary
 
 
-
 def run_steward(options: RunnerOptions) -> Optional[str]:
     """Run steward and return final response text. For conversation history, use run_steward_with_history."""
     result = run_steward_with_history(options)
@@ -185,6 +184,7 @@ async def run_steward_async(options: RunnerOptions) -> RunnerResult:
     # Create ACP-aware stream handler if event queue is provided
     acp_stream_handler = options.stream_handler
     if options.event_queue and not acp_stream_handler:
+
         async def _acp_stream_handler(chunk: str, done: bool) -> None:
             if chunk:
                 await options.event_queue.emit_text_chunk(chunk)
@@ -328,17 +328,21 @@ def _parse_todo_output(output: str) -> List[Dict[str, str]]:
     for line in output.split("\n"):
         line = line.strip()
         if line.startswith("- [x]") or line.startswith("- [X]"):
-            entries.append({
-                "content": line[5:].strip(),
-                "status": "completed",
-                "priority": "medium",
-            })
+            entries.append(
+                {
+                    "content": line[5:].strip(),
+                    "status": "completed",
+                    "priority": "medium",
+                }
+            )
         elif line.startswith("- [ ]"):
-            entries.append({
-                "content": line[5:].strip(),
-                "status": "pending",
-                "priority": "medium",
-            })
+            entries.append(
+                {
+                    "content": line[5:].strip(),
+                    "status": "pending",
+                    "priority": "medium",
+                }
+            )
     return entries
 
 
@@ -435,7 +439,9 @@ async def execute_tools_parallel(
             # Handle meta-tool: if result contains meta_prompt, synthesize via LLM
             if result.get("meta_prompt"):
                 if event_queue:
-                    await event_queue.emit_tool_progress(tool_call_id, tool_name, "in_progress", "Synthesizing response...")
+                    await event_queue.emit_tool_progress(
+                        tool_call_id, tool_name, "in_progress", "Synthesizing response..."
+                    )
                 synthesized = await synthesize_meta_tool_async(client, result, logger)
                 result = {"id": result.get("id", tool_name), "output": synthesized}
 
@@ -589,14 +595,22 @@ def _build_skill_context(registry: "SkillRegistry", prompt: str) -> Optional[str
     if matches:
         lines.append("\nRelevant skills for this task:")
         for skill, score in matches:
-            desc = (skill.description or "")[:100]
+            desc = (skill.description or "").strip()
             lines.append(f"- **{skill.name}** ({skill.path}): {desc}")
+            if skill.frontmatter:
+                lines.append("  Frontmatter:")
+                for key, value in sorted(skill.frontmatter.items()):
+                    if isinstance(value, list):
+                        value_text = ", ".join(str(item) for item in value)
+                    else:
+                        value_text = str(value)
+                    lines.append(f"    - {key}: {value_text}")
             if skill.requires:
                 lines.append(f"  Requires: {', '.join(skill.requires)}")
             if skill.chain:
                 lines.append(f"  Chains to: {', '.join(skill.chain)}")
 
-        lines.append("\nUse load_skill to read full instructions before starting.")
+        lines.append("\nUse load_skill to read the full SKILL.md before using a skill.")
         lines.append("After completing a skill, check its 'chain' for follow-up skills.")
     else:
         lines.append("Use suggest_skills or discover_skills to find relevant skills.")

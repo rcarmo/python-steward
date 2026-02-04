@@ -22,6 +22,8 @@ class SkillMetadata:
     chain: List[str] = field(default_factory=list)
     body: str = ""
     path: str = ""
+    frontmatter: Dict[str, str | List[str]] = field(default_factory=dict)
+    content: str = ""
 
 
 def parse_frontmatter(content: str) -> tuple[Dict[str, str | List[str]], str]:
@@ -130,6 +132,8 @@ def parse_skill(content: str, path: str = "") -> SkillMetadata:
         chain=chain,
         body=body.strip(),
         path=path,
+        frontmatter=frontmatter,
+        content=content,
     )
 
 

@@ -106,6 +106,12 @@ This skill creates generative art.
     assert "Chain:" in result["output"]
     assert "Overview" in result["output"]
 
+    from steward.tools.load_skill import parse_skill
+
+    parsed = parse_skill(skill_content, "SKILL.md")
+    assert parsed.frontmatter["name"] == "algorithmic-art"
+    assert parsed.frontmatter["triggers"] == ["generative art", "p5js"]
+
 
 def test_load_skill_direct_path(tool_handlers, sandbox: Path):
     reset_registry()
