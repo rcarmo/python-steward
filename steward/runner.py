@@ -609,8 +609,7 @@ def _build_skill_context(registry: "SkillRegistry", prompt: str) -> Optional[str
                 lines.append(f"  Requires: {', '.join(skill.requires)}")
             if skill.chain:
                 lines.append(f"  Chains to: {', '.join(skill.chain)}")
-
-        lines.append("\nUse load_skill to read the full SKILL.md before using a skill.")
+        lines.append("\nAdmonition: Before using any skill, read the full SKILL.md via load_skill.")
         lines.append("After completing a skill, check its 'chain' for follow-up skills.")
     else:
         lines.append("Use suggest_skills or discover_skills to find relevant skills.")

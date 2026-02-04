@@ -242,7 +242,7 @@ Detailed steps here.
     assert context is not None
     assert "Frontmatter:" in context
     assert "triggers" in context
-    assert "Use load_skill to read the full SKILL.md" in context
+    assert "Admonition: Before using any skill" in context
 
 
 def test_execute_tools_parallel_emits_failed_event_on_error():
