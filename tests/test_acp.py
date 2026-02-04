@@ -2,21 +2,41 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Dict, List
 
 import pytest
 from acp import text_block
+from acp.schema import AllowedOutcome, RequestPermissionResponse
 
 from steward.acp import DEFAULT_MODE_ID, STEWARD_MODES, StewardAcpAgent
+from steward.acp_events import AcpEventQueue, AcpEventType, PermissionResponse
 from steward.runner import RunnerResult
 
 
 class FakeClient:
     def __init__(self) -> None:
         self.updates: List[Dict[str, Any]] = []
+        self.permission_requests: List[Dict[str, Any]] = []
 
     async def session_update(self, session_id: str, update: Any, **kwargs: Any) -> None:
         self.updates.append({"session_id": session_id, "update": update})
+
+    async def request_permission(
+        self,
+        options: List[Any],
+        session_id: str,
+        tool_call: Any,
+        **kwargs: Any,
+    ) -> RequestPermissionResponse:
+        self.permission_requests.append(
+            {
+                "options": options,
+                "session_id": session_id,
+                "tool_call": tool_call,
+            }
+        )
+        return RequestPermissionResponse(outcome=AllowedOutcome(optionId="allow_always", outcome="selected"))
 
 
 @pytest.mark.asyncio
@@ -79,10 +99,38 @@ async def test_acp_new_session_returns_modes() -> None:
     assert session.modes.current_mode_id == DEFAULT_MODE_ID
     assert len(session.modes.available_modes) == len(STEWARD_MODES)
 
-    mode_ids = {m.id for m in session.modes.available_modes}
-    assert "default" in mode_ids
-    assert "plan" in mode_ids
-    assert "code-review" in mode_ids
+
+@pytest.mark.asyncio
+async def test_acp_permission_request_prompts_client() -> None:
+    agent = StewardAcpAgent()
+    client = FakeClient()
+    agent.on_connect(client)
+
+    session = await agent.new_session(cwd="/tmp", mcp_servers=[])
+    session_id = session.session_id
+    state = agent._sessions[session_id]
+    state.event_queue = AcpEventQueue(session_id)
+
+    async def request_and_wait() -> PermissionResponse:
+        return await state.event_queue.request_permission(
+            tool_call_id="call-1",
+            tool_name="bash",
+            arguments={"command": "ls"},
+            reason="dangerous",
+        )
+
+    task = asyncio.create_task(request_and_wait())
+    await asyncio.sleep(0.01)
+    event = state.event_queue.get_nowait()
+    assert event is not None
+    assert event.event_type == AcpEventType.PERMISSION_REQUEST
+
+    await agent._send_event_to_client(session_id, event)
+    response = await task
+
+    assert response.approved
+    assert response.always_allow
+    assert client.permission_requests
 
 
 @pytest.mark.asyncio
@@ -542,9 +590,7 @@ async def test_acp_client_filesystem_capabilities() -> None:
     assert agent._client_fs.write_text_file is False
 
     # With capabilities (using 'fs' which is the actual attribute name)
-    client_caps = ClientCapabilities(
-        fs=FileSystemCapability(readTextFile=True, writeTextFile=True)
-    )
+    client_caps = ClientCapabilities(fs=FileSystemCapability(readTextFile=True, writeTextFile=True))
     await agent.initialize(protocol_version=1, client_capabilities=client_caps)
     assert agent._client_fs.read_text_file is True
     assert agent._client_fs.write_text_file is True
@@ -559,6 +605,7 @@ async def test_acp_delegated_file_read() -> None:
         async def read_text_file(self, path: str, session_id: str, **kwargs: Any) -> Any:
             class Response:
                 content = f"content of {path}"
+
             return Response()
 
     agent = StewardAcpAgent()

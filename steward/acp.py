@@ -40,6 +40,7 @@ from acp.schema import (
     ListSessionsResponse,
     McpCapabilities,
     McpServerStdio,
+    PermissionOption,
     PlanEntry,
     ResourceContentBlock,
     ResumeSessionResponse,
@@ -53,9 +54,17 @@ from acp.schema import (
     SessionResumeCapabilities,
     SseMcpServer,
     TextContentBlock,
+    ToolCallUpdate,
 )
 
-from .acp_events import AcpEvent, AcpEventQueue, AcpEventType, CancellationToken, PermissionResponse
+from .acp_events import (
+    AcpEvent,
+    AcpEventQueue,
+    AcpEventType,
+    CancellationToken,
+    PermissionResponse,
+    get_tool_kind,
+)
 from .config import DEFAULT_MAX_STEPS, DEFAULT_MODEL, PLAN_MODE_PREFIX, detect_provider
 from .logger import HumanEntry, Logger
 from .runner import RunnerOptions, run_steward_async
@@ -169,7 +178,7 @@ class StewardAcpAgent(Agent):
                 load_session=True,
                 mcp_capabilities=McpCapabilities(
                     http=False,  # Not yet supported
-                    sse=False,   # Not yet supported
+                    sse=False,  # Not yet supported
                 ),
                 session_capabilities=SessionCapabilities(
                     list=SessionListCapabilities(),
@@ -240,12 +249,14 @@ class StewardAcpAgent(Agent):
         # Include in-memory sessions
         for sid, state in self._sessions.items():
             if cwd is None or state.cwd == cwd:
-                sessions.append(SessionInfo(
-                    session_id=sid,
-                    cwd=state.cwd or "",
-                    title=state.title,
-                    updated_at=state.updated_at,
-                ))
+                sessions.append(
+                    SessionInfo(
+                        session_id=sid,
+                        cwd=state.cwd or "",
+                        title=state.title,
+                        updated_at=state.updated_at,
+                    )
+                )
 
         # Include persisted sessions not in memory
         if self._persist_sessions and self._session_dir.exists():
@@ -258,12 +269,14 @@ class StewardAcpAgent(Agent):
                             try:
                                 data = json.loads(state_file.read_text(encoding="utf8"))
                                 if cwd is None or data.get("cwd") == cwd:
-                                    sessions.append(SessionInfo(
-                                        session_id=sid,
-                                        cwd=data.get("cwd", ""),
-                                        title=data.get("title"),
-                                        updated_at=data.get("updated_at"),
-                                    ))
+                                    sessions.append(
+                                        SessionInfo(
+                                            session_id=sid,
+                                            cwd=data.get("cwd", ""),
+                                            title=data.get("title"),
+                                            updated_at=data.get("updated_at"),
+                                        )
+                                    )
                             except (json.JSONDecodeError, OSError):
                                 pass
 
@@ -510,9 +523,7 @@ class StewardAcpAgent(Agent):
         )
 
         # Start event dispatcher task
-        dispatcher_task = asyncio.create_task(
-            self._dispatch_events(session_id, event_queue)
-        )
+        dispatcher_task = asyncio.create_task(self._dispatch_events(session_id, event_queue))
 
         # Run steward
         try:
@@ -665,16 +676,49 @@ class StewardAcpAgent(Agent):
             )
 
         elif event.event_type == AcpEventType.PERMISSION_REQUEST:
-            # Permission requests need special handling - the client responds
-            # via a separate mechanism. For now, auto-approve.
-            # TODO: Implement proper permission flow with client
+            # Permission requests need special handling - ask the client.
             request_id = event.data.get("request_id", "")
-            if request_id:
-                state = self._sessions.get(session_id)
-                if state and state.event_queue:
+            state = self._sessions.get(session_id)
+            if request_id and state and state.event_queue:
+                tool_name = event.data.get("tool_name", "")
+                tool_args = event.data.get("arguments", {})
+                tool_call_id = event.tool_call_id or ""
+                options = [
+                    PermissionOption(kind="allow_once", name="Allow once", optionId="allow_once"),
+                    PermissionOption(kind="allow_always", name="Always allow", optionId="allow_always"),
+                    PermissionOption(kind="reject_once", name="Deny", optionId="reject_once"),
+                ]
+                tool_call = ToolCallUpdate(
+                    toolCallId=tool_call_id,
+                    title=tool_name,
+                    kind=get_tool_kind(tool_name),
+                    status="pending",
+                    rawInput=tool_args,
+                )
+                try:
+                    response = await self._conn.request_permission(
+                        options=options,
+                        session_id=session_id,
+                        tool_call=tool_call,
+                    )
+                    approved = response.outcome.outcome == "selected"
+                    option_id = getattr(response.outcome, "option_id", "")
+                    always_allow = option_id == "allow_always"
                     state.event_queue.resolve_permission(
                         request_id,
-                        PermissionResponse(request_id=request_id, approved=True, always_allow=False),
+                        PermissionResponse(
+                            request_id=request_id,
+                            approved=approved,
+                            always_allow=always_allow,
+                        ),
+                    )
+                except Exception as err:
+                    self._logger.human(
+                        HumanEntry(title="acp", body=f"permission request failed: {err}", variant="warn")
+                    )
+                    state.event_queue.resolve_permission(
+                        request_id,
+                        PermissionResponse(request_id=request_id, approved=False, always_allow=False),
                     )
 
         elif event.event_type == AcpEventType.THOUGHT_CHUNK:
@@ -768,10 +812,7 @@ class StewardAcpAgent(Agent):
 def _build_mode_state(current_mode_id: str) -> SessionModeState:
     """Build SessionModeState with available modes."""
     return SessionModeState(
-        available_modes=[
-            SessionMode(id=m["id"], name=m["name"], description=m["description"])
-            for m in STEWARD_MODES
-        ],
+        available_modes=[SessionMode(id=m["id"], name=m["name"], description=m["description"]) for m in STEWARD_MODES],
         current_mode_id=current_mode_id,
     )
 
@@ -808,39 +849,47 @@ def _parse_mcp_servers(
             # Handle dict format
             if "command" in server:
                 # Stdio server
-                specs.append(McpServerSpec(
-                    name=server.get("name", f"mcp-{i}"),
-                    server_type="stdio",
-                    command=server.get("command"),
-                    args=server.get("args", []),
-                    env=server.get("env", {}),
-                ))
+                specs.append(
+                    McpServerSpec(
+                        name=server.get("name", f"mcp-{i}"),
+                        server_type="stdio",
+                        command=server.get("command"),
+                        args=server.get("args", []),
+                        env=server.get("env", {}),
+                    )
+                )
             elif "url" in server:
                 # HTTP or SSE server
                 server_type = "sse" if "sse" in server.get("url", "").lower() else "http"
-                specs.append(McpServerSpec(
-                    name=server.get("name", f"mcp-{i}"),
-                    server_type=server_type,
-                    url=server.get("url"),
-                ))
+                specs.append(
+                    McpServerSpec(
+                        name=server.get("name", f"mcp-{i}"),
+                        server_type=server_type,
+                        url=server.get("url"),
+                    )
+                )
         elif hasattr(server, "command"):
             # McpServerStdio
-            specs.append(McpServerSpec(
-                name=getattr(server, "name", f"mcp-{i}"),
-                server_type="stdio",
-                command=getattr(server, "command", None),
-                args=getattr(server, "args", []) or [],
-                env=dict(getattr(server, "env", {}) or {}),
-            ))
+            specs.append(
+                McpServerSpec(
+                    name=getattr(server, "name", f"mcp-{i}"),
+                    server_type="stdio",
+                    command=getattr(server, "command", None),
+                    args=getattr(server, "args", []) or [],
+                    env=dict(getattr(server, "env", {}) or {}),
+                )
+            )
         elif hasattr(server, "url"):
             # HttpMcpServer or SseMcpServer
             url = getattr(server, "url", "")
             is_sse = isinstance(server, SseMcpServer) if hasattr(server, "__class__") else "sse" in url.lower()
-            specs.append(McpServerSpec(
-                name=getattr(server, "name", f"mcp-{i}"),
-                server_type="sse" if is_sse else "http",
-                url=url,
-            ))
+            specs.append(
+                McpServerSpec(
+                    name=getattr(server, "name", f"mcp-{i}"),
+                    server_type="sse" if is_sse else "http",
+                    url=url,
+                )
+            )
     return specs
 
 
