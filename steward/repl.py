@@ -224,7 +224,7 @@ def run_repl(
                 return True
             question = f"Allow tool '{tool_name}' to run?"
             result = tool_ask_user(question=question, choices=["Allow", "Deny"], allow_freeform=False)
-            return "\"response\": \"Allow\"" in result["output"]
+            return '"response": "Allow"' in result["output"]
 
         # Run steward with the prompt
         options = RunnerOptions(

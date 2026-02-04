@@ -80,11 +80,13 @@ class TestAcpEventQueue:
     async def test_drain(self) -> None:
         queue = AcpEventQueue("test-session")
         for i in range(3):
-            await queue.put(AcpEvent(
-                event_type=AcpEventType.TEXT_CHUNK,
-                session_id="test-session",
-                data={"text": f"chunk-{i}"},
-            ))
+            await queue.put(
+                AcpEvent(
+                    event_type=AcpEventType.TEXT_CHUNK,
+                    session_id="test-session",
+                    data={"text": f"chunk-{i}"},
+                )
+            )
         events = await queue.drain()
         assert len(events) == 3
         assert events[0].data["text"] == "chunk-0"
@@ -96,11 +98,13 @@ class TestAcpEventQueue:
         queue.close()
         assert queue.is_closed
         # Put should silently return without queueing
-        await queue.put(AcpEvent(
-            event_type=AcpEventType.TEXT_CHUNK,
-            session_id="test-session",
-            data={},
-        ))
+        await queue.put(
+            AcpEvent(
+                event_type=AcpEventType.TEXT_CHUNK,
+                session_id="test-session",
+                data={},
+            )
+        )
         assert queue.get_nowait() is None
 
     @pytest.mark.asyncio

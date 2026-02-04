@@ -49,7 +49,9 @@ class AcpEventType(str, Enum):
 
 
 # ACP tool kind mapping from Steward tool names
-TOOL_KIND_MAP: Dict[str, Literal["read", "edit", "delete", "move", "search", "execute", "think", "fetch", "switch_mode", "other"]] = {
+TOOL_KIND_MAP: Dict[
+    str, Literal["read", "edit", "delete", "move", "search", "execute", "think", "fetch", "switch_mode", "other"]
+] = {
     # Read operations
     "view": "read",
     "grep": "search",
@@ -97,21 +99,25 @@ TOOL_KIND_MAP: Dict[str, Literal["read", "edit", "delete", "move", "search", "ex
 }
 
 # Tools that require permission before execution
-DANGEROUS_TOOLS = frozenset({
-    "bash",
-    "write_bash",
-    "edit",
-    "create",
-    "replace_string_in_file",
-    "multi_replace_string_in_file",
-    "apply_patch",
-    "git_commit",
-    "install_python_packages",
-    "run_js",
-})
+DANGEROUS_TOOLS = frozenset(
+    {
+        "bash",
+        "write_bash",
+        "edit",
+        "create",
+        "replace_string_in_file",
+        "multi_replace_string_in_file",
+        "apply_patch",
+        "git_commit",
+        "install_python_packages",
+        "run_js",
+    }
+)
 
 
-def get_tool_kind(tool_name: str) -> Literal["read", "edit", "delete", "move", "search", "execute", "think", "fetch", "switch_mode", "other"]:
+def get_tool_kind(
+    tool_name: str,
+) -> Literal["read", "edit", "delete", "move", "search", "execute", "think", "fetch", "switch_mode", "other"]:
     """Map Steward tool name to ACP tool kind."""
     return TOOL_KIND_MAP.get(tool_name, "other")
 
@@ -129,7 +135,9 @@ class AcpEvent:
     session_id: str
     data: Dict[str, Any] = field(default_factory=dict)
     tool_call_id: Optional[str] = None
-    timestamp: float = field(default_factory=lambda: asyncio.get_event_loop().time() if asyncio.get_event_loop().is_running() else 0.0)
+    timestamp: float = field(
+        default_factory=lambda: asyncio.get_event_loop().time() if asyncio.get_event_loop().is_running() else 0.0
+    )
 
 
 @dataclass
@@ -137,7 +145,9 @@ class ToolCallEvent(AcpEvent):
     """Event for tool call lifecycle updates."""
 
     tool_name: str = ""
-    tool_kind: Literal["read", "edit", "delete", "move", "search", "execute", "think", "fetch", "switch_mode", "other"] = "other"
+    tool_kind: Literal[
+        "read", "edit", "delete", "move", "search", "execute", "think", "fetch", "switch_mode", "other"
+    ] = "other"
     arguments: Dict[str, Any] = field(default_factory=dict)
     status: Literal["pending", "in_progress", "completed", "failed"] = "pending"
     output: Optional[str] = None
@@ -296,24 +306,30 @@ class AcpEventQueue:
         self._pending_permissions[request_id] = future
 
         # Emit permission request event
-        await self.put(AcpEvent(
-            event_type=AcpEventType.PERMISSION_REQUEST,
-            session_id=self.session_id,
-            tool_call_id=tool_call_id,
-            data={
-                "request_id": request_id,
-                "tool_name": tool_name,
-                "arguments": arguments,
-                "reason": reason,
-            },
-        ))
+        await self.put(
+            AcpEvent(
+                event_type=AcpEventType.PERMISSION_REQUEST,
+                session_id=self.session_id,
+                tool_call_id=tool_call_id,
+                data={
+                    "request_id": request_id,
+                    "tool_name": tool_name,
+                    "arguments": arguments,
+                    "reason": reason,
+                },
+            )
+        )
 
         try:
             # Wait for response (with cancellation support)
             async def wait_for_future() -> PermissionResponse:
-                return await asyncio.wrap_future(asyncio.ensure_future(
-                    asyncio.get_event_loop().run_in_executor(None, future.result)
-                )) if False else await asyncio.shield(asyncio.ensure_future(self._wait_for_permission(future)))
+                return (
+                    await asyncio.wrap_future(
+                        asyncio.ensure_future(asyncio.get_event_loop().run_in_executor(None, future.result))
+                    )
+                    if False
+                    else await asyncio.shield(asyncio.ensure_future(self._wait_for_permission(future)))
+                )
 
             # Simple approach: wait for either the future or cancellation
             wait_task = asyncio.create_task(self._wait_for_permission(future))
@@ -368,18 +384,22 @@ class AcpEventQueue:
     async def emit_text_chunk(self, text: str) -> None:
         """Emit a text streaming chunk."""
         self.saw_text_chunks = True
-        await self.put(AcpEvent(
-            event_type=AcpEventType.TEXT_CHUNK,
-            session_id=self.session_id,
-            data={"text": text},
-        ))
+        await self.put(
+            AcpEvent(
+                event_type=AcpEventType.TEXT_CHUNK,
+                session_id=self.session_id,
+                data={"text": text},
+            )
+        )
 
     async def emit_text_done(self) -> None:
         """Emit text streaming completion."""
-        await self.put(AcpEvent(
-            event_type=AcpEventType.TEXT_DONE,
-            session_id=self.session_id,
-        ))
+        await self.put(
+            AcpEvent(
+                event_type=AcpEventType.TEXT_DONE,
+                session_id=self.session_id,
+            )
+        )
 
     async def emit_tool_start(
         self,
@@ -388,15 +408,17 @@ class AcpEventQueue:
         arguments: Dict[str, Any],
     ) -> None:
         """Emit tool call start event."""
-        await self.put(ToolCallEvent(
-            event_type=AcpEventType.TOOL_START,
-            session_id=self.session_id,
-            tool_call_id=tool_call_id,
-            tool_name=tool_name,
-            tool_kind=get_tool_kind(tool_name),
-            arguments=arguments,
-            status="in_progress",
-        ))
+        await self.put(
+            ToolCallEvent(
+                event_type=AcpEventType.TOOL_START,
+                session_id=self.session_id,
+                tool_call_id=tool_call_id,
+                tool_name=tool_name,
+                tool_kind=get_tool_kind(tool_name),
+                arguments=arguments,
+                status="in_progress",
+            )
+        )
 
     async def emit_tool_progress(
         self,
@@ -406,15 +428,17 @@ class AcpEventQueue:
         output: Optional[str] = None,
     ) -> None:
         """Emit tool call progress update."""
-        await self.put(ToolCallEvent(
-            event_type=AcpEventType.TOOL_PROGRESS,
-            session_id=self.session_id,
-            tool_call_id=tool_call_id,
-            tool_name=tool_name,
-            tool_kind=get_tool_kind(tool_name),
-            status=status,
-            output=output,
-        ))
+        await self.put(
+            ToolCallEvent(
+                event_type=AcpEventType.TOOL_PROGRESS,
+                session_id=self.session_id,
+                tool_call_id=tool_call_id,
+                tool_name=tool_name,
+                tool_kind=get_tool_kind(tool_name),
+                status=status,
+                output=output,
+            )
+        )
 
     async def emit_tool_complete(
         self,
@@ -423,15 +447,17 @@ class AcpEventQueue:
         output: str,
     ) -> None:
         """Emit tool call completion event."""
-        await self.put(ToolCallEvent(
-            event_type=AcpEventType.TOOL_COMPLETE,
-            session_id=self.session_id,
-            tool_call_id=tool_call_id,
-            tool_name=tool_name,
-            tool_kind=get_tool_kind(tool_name),
-            status="completed",
-            output=output,
-        ))
+        await self.put(
+            ToolCallEvent(
+                event_type=AcpEventType.TOOL_COMPLETE,
+                session_id=self.session_id,
+                tool_call_id=tool_call_id,
+                tool_name=tool_name,
+                tool_kind=get_tool_kind(tool_name),
+                status="completed",
+                output=output,
+            )
+        )
 
     async def emit_tool_failed(
         self,
@@ -440,39 +466,47 @@ class AcpEventQueue:
         error: str,
     ) -> None:
         """Emit tool call failure event."""
-        await self.put(ToolCallEvent(
-            event_type=AcpEventType.TOOL_FAILED,
-            session_id=self.session_id,
-            tool_call_id=tool_call_id,
-            tool_name=tool_name,
-            tool_kind=get_tool_kind(tool_name),
-            status="failed",
-            error=error,
-        ))
+        await self.put(
+            ToolCallEvent(
+                event_type=AcpEventType.TOOL_FAILED,
+                session_id=self.session_id,
+                tool_call_id=tool_call_id,
+                tool_name=tool_name,
+                tool_kind=get_tool_kind(tool_name),
+                status="failed",
+                error=error,
+            )
+        )
 
     async def emit_thought(self, text: str) -> None:
         """Emit agent thought/reasoning chunk."""
-        await self.put(AcpEvent(
-            event_type=AcpEventType.THOUGHT_CHUNK,
-            session_id=self.session_id,
-            data={"text": text},
-        ))
+        await self.put(
+            AcpEvent(
+                event_type=AcpEventType.THOUGHT_CHUNK,
+                session_id=self.session_id,
+                data={"text": text},
+            )
+        )
 
     async def emit_plan_update(self, entries: List[Dict[str, Any]]) -> None:
         """Emit plan/TODO update."""
-        await self.put(AcpEvent(
-            event_type=AcpEventType.PLAN_UPDATE,
-            session_id=self.session_id,
-            data={"entries": entries},
-        ))
+        await self.put(
+            AcpEvent(
+                event_type=AcpEventType.PLAN_UPDATE,
+                session_id=self.session_id,
+                data={"entries": entries},
+            )
+        )
 
     async def emit_error(self, error: str, fatal: bool = False) -> None:
         """Emit an error event."""
-        await self.put(AcpEvent(
-            event_type=AcpEventType.ERROR,
-            session_id=self.session_id,
-            data={"error": error, "fatal": fatal},
-        ))
+        await self.put(
+            AcpEvent(
+                event_type=AcpEventType.ERROR,
+                session_id=self.session_id,
+                data={"error": error, "fatal": fatal},
+            )
+        )
 
 
 # Type for event handler callbacks
