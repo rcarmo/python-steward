@@ -528,7 +528,7 @@ class StewardAcpAgent(Agent):
                 self._save_session(session_id, state)
 
             response_text = result.response or ""
-            if response_text:
+            if response_text and not event_queue.saw_text_chunks:
                 await self._conn.session_update(
                     session_id=session_id,
                     update=update_agent_message(TextContentBlock(type="text", text=response_text)),

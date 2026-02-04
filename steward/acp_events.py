@@ -208,6 +208,7 @@ class AcpEventQueue:
         self._closed = False
         self._pending_permissions: Dict[str, asyncio.Future[PermissionResponse]] = {}
         self._granted_permissions: set[str] = set()  # Tools with "always allow"
+        self.saw_text_chunks = False
 
     async def put(self, event: AcpEvent) -> None:
         """Add an event to the queue."""
@@ -366,6 +367,7 @@ class AcpEventQueue:
 
     async def emit_text_chunk(self, text: str) -> None:
         """Emit a text streaming chunk."""
+        self.saw_text_chunks = True
         await self.put(AcpEvent(
             event_type=AcpEventType.TEXT_CHUNK,
             session_id=self.session_id,
