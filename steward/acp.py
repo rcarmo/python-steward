@@ -20,7 +20,6 @@ from acp import (
     SetSessionModeResponse,
     run_agent,
     start_tool_call,
-    text_block,
     update_agent_message,
     update_tool_call,
 )
@@ -528,12 +527,11 @@ class StewardAcpAgent(Agent):
             if self._persist_sessions:
                 self._save_session(session_id, state)
 
-            # Send final response if not already streamed
             response_text = result.response or ""
             if response_text:
                 await self._conn.session_update(
                     session_id=session_id,
-                    update=update_agent_message(text_block(response_text)),
+                    update=update_agent_message(TextContentBlock(type="text", text=response_text)),
                 )
 
             await self._send_usage_summary(session_id, result.usage_summary)
@@ -627,7 +625,7 @@ class StewardAcpAgent(Agent):
             if text:
                 await self._conn.session_update(
                     session_id=session_id,
-                    update=update_agent_message(text_block(text)),
+                    update=update_agent_message(TextContentBlock(type="text", text=text)),
                 )
 
         elif event.event_type == AcpEventType.TOOL_START:
@@ -687,7 +685,7 @@ class StewardAcpAgent(Agent):
                     session_id=session_id,
                     update=AgentThoughtChunk(
                         sessionUpdate="agent_thought_chunk",
-                        content=text_block(text),
+                        content=TextContentBlock(type="text", text=text),
                     ),
                 )
 
